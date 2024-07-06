@@ -1,20 +1,11 @@
-# Learning Metal with metal-cpp
-
-Learn Metal using **metal-cpp**.
+# Learning Metal
 
 ## Overview
 
-![Hundreds of colored cubes, each rotated in differently, are arranged in the shape of a much larger cube](Documentation/Texturing.png "Screenshot of the 07-texturing sample")
-
-This project contains a series of samples written in C++ that introduce the Metal API and show how to accomplish common tasks with it.
-
-Each sample incrementally extends upon the previous one with minimal changes to the code to introduce new functionality. You can use the `diff` tool to visualize the exact code changes necessary to implement this functionality.
-
-This README presents how to build the project and describes how each sample accomplishes a specific task using Metal.
-
-The project demonstrates how to incrementally achieve the following tasks:
-
 * 00 - window : Create a Window for Metal Rendering
+
+--- 
+
 * 01 - primitive : Render a Triangle
 * 02 - argbuffers : Store Shader Arguments in a Buffer
 * 03 - animation : Animate Rendering
@@ -28,90 +19,41 @@ The project demonstrates how to incrementally achieve the following tasks:
 
 ## Dependencies
 
-These samples include the **metal-cpp** and **metal-cpp-extensions** libraries.
+- cpp: 
+    - metal-cpp (Foundation, Metal, QuartzCore)
+    - metal-cpp-extensions (AppKit, MetalKit)
 
-Use either the included Xcode project or the UNIX make utility to build the project.
-
-This project requires C++17 support (available since Xcode 9.3).
-
-## Building with Xcode
-
-Open the `LearnMetalCPP.xcodeproj` project with Xcode.
-
-The project contains a target for each sample and an aggregate target to build them all at once. Use the scheme drop-down menu next to the "Run" button to select which sample to build and run.
-
-## Building with Make
-
-To build the samples using a Makefile, open the terminal and run the `make` command. The build process will put the executables into the `build/` folder.
-
-By default, the Makefile compiles the source with the `-O2` optimization level. Pass the following options to make change the build configuration:
-
-* `DEBUG=1` : disable optimizations and include symbols (`-g`).
-* `ASAN=1` : build with address sanitizer support (`-fsanitize=address`).
-
+- objc: 
+    - Metal
+    - MetalKit
+    - AppKit
+    
 ## Sample 0: Create a Window for Metal Rendering
 
 The `00-window` sample shows how to create a macOS application with a window capable of displaying content drawn using Metal. This sample clears the contents of the window to a solid red color.
 
-The program starts in the `main` function.
+In order to create the window, the app obtains the global shared application object and sets a custom application delegate (subclass of `ApplicationDelegate`). 
 
-``` other
-MyAppDelegate del;
+The delegate receives notifications of system events and responds when the application has finished launching and is ready to create its window. The notification of this event arrives in the `applicationDidFinishLaunching` method. The sample overrides this method and creates the window, a menu, and the Metal-capable content view, an `MTKView`. `MTKView` displays Metal content in a window. `MTKView` also provides a runtime loop that triggers rendering at a regular cadence. 
 
-NS::Application* pSharedApplication = NS::Application::sharedApplication();
-pSharedApplication->setDelegate( &del );
-pSharedApplication->run();
-```
-
-In order to create the window, the app obtains the global shared application object and sets a custom application delegate (an instance of a subclass of `NS::ApplicationDelegate`). The delegate receives notifications of system events and, in particular, responds when the application has finished launching and is ready to create its window.
-
-The notification of this event arrives in the `applicationDidFinishLaunching()` method. The sample overrides this method and creates the window, a menu, and the Metal-capable content view.
-
-The sample uses the `MTK::View` class to display Metal content in a window. `MTK::View` also provides a runtime loop that triggers rendering at a regular cadence. The `applicationDidFinishLaunching()` method initializes the view with a `CGRect` describing its dimensions and a `MTL::Device` object, a software representation of the system's GPU. This method also specifies a pixel format for the view's drawable render target and sets a color with which to clear the drawable each frame.
-
-``` other
-_pMtkView = MTK::View::alloc()->init( frame, _pDevice );
-_pMtkView->setColorPixelFormat( MTL::PixelFormat::PixelFormatBGRA8Unorm_sRGB );
-_pMtkView->setClearColor( MTL::ClearColor::Make( 1.0, 0.0, 0.0, 1.0 ) );
-```
+The `applicationDidFinishLaunching` method initializes the view with a `CGRect` describing its dimensions and a `MTLDevice` object, a software representation of the system's GPU. This method also specifies a pixel format for the view's drawable render target and sets a color with which to clear the drawable each frame.
 
 The method also sets an instance of the `MyMTKViewDelegate` class as a delegate.
 
-``` other
-_pViewDelegate = new MyMTKViewDelegate( _pDevice );
-_pMtkView->setDelegate( _pViewDelegate );
-```
+`MyMTKViewDelegate` is a subclass of the `MTKViewDelegate`, which provides an interface to `MTKView` for event forwarding. By overriding the virtual functions of its parent class, `MyMTKViewDelegate` can respond to these events. `MTKView` calls the `drawInMTKView` method each frame allowing the app to update any rendering.
 
-`MyMTKViewDelegate` is a subclass of the `MTK::ViewDelegate` class. `MTK::ViewDelegate` provides an interface to which the `MTK::View` can forward events. By overriding the virtual functions of its parent class, `MyMTKViewDelegate` can respond to these events. `MTK::View` calls the `drawInMTKView()` method each frame allowing the app to update any rendering.
-
-``` other
-void MyMTKViewDelegate::drawInMTKView( MTK::View* pView )
-{
-    _pRenderer->draw( pView );
-}
-```
-
-`drawInMTKView()` simply calls the `Renderer` class's `draw()` method.  The `draw()` method performs the minimal work necessary to clear the view's color.
-
-``` other
-MTL::CommandBuffer* pCmd = _pCommandQueue->commandBuffer();
-MTL::RenderPassDescriptor* pRpd = pView->currentRenderPassDescriptor();
-MTL::RenderCommandEncoder* pEnc = pCmd->renderCommandEncoder( pRpd );
-pEnc->endEncoding();
-pCmd->presentDrawable( pView->currentDrawable() );
-pCmd->commit();
-```
+`drawInMTKView` simply calls the `Renderer` class's `draw()` method.  The `draw()` method performs the minimal work necessary to clear the view's color.
 
 It performs the following actions:
 
-1. Create a command buffer object.  This allows the app to encode commands for execution by the GPU.
-2. Create a render command encoder object.  This prepares the command buffer to receive drawing commands and specifies the actions to perform when drawing starts and ends.
-3. Present the *current drawable.* This encodes a command to make the results of the GPU’s work visible on the screen.
-4. Submit the command buffer to its command queue. This submits the encoded commands to the GPU for execution.
+1. Create CommandBuffer.  This allows the app to encode commands for execution by the GPU.
+2. Create RenderCommandEncoder.  This prepares the command buffer to receive drawing commands and specifies the actions to perform when drawing starts and ends.
+3. Present the drawable. This encodes a command to make the results of the GPU’s work visible on the screen.
+4. Submit the encoded commands to the GPU for execution.
 
-In this sample, the `MTLRenderCommandEncoder` object does not explicitly encode any commands. However, the `MTL::RenderPassDescriptor` object used to create the encoder implicitly encodes a clear command. This command produces the solid red color on the view.
+In this sample, the `MTLRenderCommandEncoder` object does not explicitly encode any commands. However, the `MTLRenderPassDescriptor` implicitly encodes a clear command.
 
-* Note: Metal relies on temporary *autoreleased* objects. The sample creates a `NS:AutoreleasePool` object at the beginning of each frame to manage these objects. This pool tracks these temporary objects and frees them when the pool destructor is called at the end of the frame. See the **metal-cpp** documentation for more details.
+Metal relies on temporary *autoreleased* objects.
 
 ## Sample 1: Render a Triangle
 
