@@ -1,4 +1,5 @@
 build
-**/*.o
+**/obj
+**/bin
 .vscode
 .DS_Store
