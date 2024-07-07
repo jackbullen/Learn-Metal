@@ -4,6 +4,7 @@
 
 @interface Renderer: NSObject
 - (instancetype)initWithDevice:(id<MTLDevice>)device;
+- (void)buildShaders;
 - (void)draw:(MTKView *)view;
 @end
 
@@ -106,7 +107,7 @@ int main(int argc, const char *argv[])
     [_pView setDelegate:_pViewDelegate];
 
     [_pWindow setContentView:_pView];
-    [_pWindow setTitle:@"00 - Window"];
+    [_pWindow setTitle:@"01 - Primitive"];
     [_pWindow makeKeyAndOrderFront:nil];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -161,6 +162,9 @@ int main(int argc, const char *argv[])
 {
     id<MTLDevice> _pDevice;
     id<MTLCommandQueue> _pCommandQueue;
+    id<MTLRenderPipelineState> _pPSO;
+    id<MTLBuffer> _pVertexPositionsBuffer;
+    id<MTLBuffer> _pVertexColorsBuffer;
 }
 @end
 
@@ -173,13 +177,105 @@ int main(int argc, const char *argv[])
     {
         _pDevice = device;
         _pCommandQueue = [_pDevice newCommandQueue];
+        [self buildShaders];
+        [self buildBuffers];
     }
     return self;
 }
 
 - (void)dealloc 
 {
+    _pVertexPositionsBuffer = nil;
+    _pVertexColorsBuffer = nil;
     [super dealloc];
+}
+
+-(void)buildShaders
+{
+    NSString* shaderSrc = @"\
+        #include <metal_stdlib> \n\
+        using namespace metal; \n\
+        struct v2f \n\
+        { \n\
+            float4 position [[position]]; \n\
+            half3 color; \n\
+        }; \n\
+        v2f vertex vertexMain(device const float3* positions [[buffer(0)]], \n\
+                              device const float3* colors [[buffer(1)]], \n\
+                              uint vertexId [[vertex_id]]) \n\
+        { \n\
+            v2f o; \n\
+            o.position = float4(positions[vertexId], 1.0); \n\
+            o.color = half3(colors[vertexId]); \n\
+            return o; \n\
+        } \n\
+        half4 fragment fragmentMain(v2f in [[stage_in]]) \n\
+        { \n\
+            return half4(in.color, 1.0); \n\
+        } \n\
+    ";
+
+    NSError* error = nil;
+    id<MTLLibrary> pLibrary = [_pDevice newLibraryWithSource:shaderSrc options:nil error:&error];
+    if (!pLibrary)
+    {
+        NSLog(@"Could not create shader library: %@", error.localizedDescription);
+        return;
+    }
+
+    id<MTLFunction> pVertexFn = [pLibrary newFunctionWithName:@"vertexMain"];
+    if (!pVertexFn)
+    {
+        NSLog(@"Failed to load vertex function");
+        return;
+    }
+
+    id<MTLFunction> pFragFn = [pLibrary newFunctionWithName:@"fragmentMain"];
+    if (!pFragFn)
+    {
+        NSLog(@"Failed to load fragment function");
+        return;
+    }
+
+    MTLRenderPipelineDescriptor* pDesc = [[MTLRenderPipelineDescriptor alloc] init];
+    pDesc.vertexFunction = pVertexFn;
+    pDesc.fragmentFunction = pFragFn;
+    pDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
+
+    _pPSO = [_pDevice newRenderPipelineStateWithDescriptor:pDesc error:&error];
+    if (!_pPSO) 
+    {
+        NSLog(@"Failed to create render pipeline state: %@", error.localizedDescription);
+        return;
+    }
+}
+
+- (void)buildBuffers
+{
+    const size_t NumVertices = 3;
+
+    simd::float3 positions[NumVertices] =
+    {
+        { -0.8f,  0.8f, 0.0f },
+        {  0.0f, -0.8f, 0.0f },
+        { +0.8f,  0.8f, 0.0f }
+    };
+
+    simd::float3 colors[NumVertices] =
+    {
+        {  1.0, 0.3f, 0.2f },
+        {  0.8f, 1.0, 0.0f },
+        {  0.8f, 0.0f, 1.0 }
+    };
+
+    const size_t positionsDataSize = sizeof(positions);
+    const size_t colorsDataSize = sizeof(colors);
+
+    _pVertexPositionsBuffer = [_pDevice newBufferWithBytes:positions length:positionsDataSize options:MTLResourceStorageModeManaged];
+    [_pVertexPositionsBuffer didModifyRange:NSMakeRange(0, _pVertexPositionsBuffer.length)];
+
+    _pVertexColorsBuffer = [_pDevice newBufferWithBytes:colors length:colorsDataSize options:MTLResourceStorageModeManaged];
+    [_pVertexColorsBuffer didModifyRange:NSMakeRange(0, _pVertexColorsBuffer.length)];
 }
 
 - (void)draw:(MTKView *)pView
@@ -189,6 +285,14 @@ int main(int argc, const char *argv[])
         id<MTLCommandBuffer> pCmd = [_pCommandQueue commandBuffer];
         MTLRenderPassDescriptor* pRpd = pView.currentRenderPassDescriptor;
         id<MTLRenderCommandEncoder> pEnc = [pCmd renderCommandEncoderWithDescriptor:pRpd];
+
+        [pEnc setRenderPipelineState:_pPSO];
+
+        [pEnc setVertexBuffer:_pVertexPositionsBuffer offset:0 atIndex:0];
+        [pEnc setVertexBuffer:_pVertexColorsBuffer offset:0 atIndex:1];
+
+        [pEnc drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+
         [pEnc endEncoding];
         [pCmd presentDrawable:pView.currentDrawable];
         [pCmd commit];
