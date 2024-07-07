@@ -5,6 +5,7 @@
 @interface Renderer: NSObject
 - (instancetype)initWithDevice:(id<MTLDevice>)device;
 - (void)buildShaders;
+- (void)buildBuffers;
 - (void)draw:(MTKView *)view;
 @end
 
