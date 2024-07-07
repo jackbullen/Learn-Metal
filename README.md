@@ -93,7 +93,7 @@ Once the `draw` method sets the vertex buffers, it encodes a draw command with a
 
 ## Sample 2: Store Shader Arguments in a Buffer
 
-`02-argbuffers` adds an *argument buffer* for the vertex data. Argument buffers are a buffer that contain references to can contain other buffers.
+`02-argbuffers` adds an *argument buffer* for the vertex data. Argument buffers are a buffer that can contain references other buffers.
 
 The renderer creates an argument encoder for the parameter of the shader. It calls the `MTLFunction::newArgumentEncoder` method with the index of the buffer parameter to encode.
 
@@ -135,13 +135,9 @@ The renderer must call the `MTLArgumentEncoder::useResource` method because the 
 
 ## Sample 3: Animate Rendering
 
-The `03-animation` builds on the previous sample by adding an animation to spin the triangle.
+`03-animation` adds an animation to spin the triangle.
 
-To accomplish this, the sample passes a value specifying a rotation angle to the vertex shader. The shader uses this angle to construct a rotation matrix, which transforms the vertices in the vertex stage.
-
-Unlike the vertex data that defines the primitive's vertex positions and colors, the animation consists of a single value that is constant (i.e. *uniform*) across all vertices processed.
-
-To provide this data, the sample defines the `FrameData` structure that contains a single `float` variable.
+A rotation angle is passed to the vertex shader and rotates the vertices.
 
 ``` c++
 struct FrameData
@@ -150,66 +146,45 @@ struct FrameData
 };
 ```
 
-Both the vertex shader written in MSL, and the host code, written in C++, declare the structure since both need access to the `angle` parameter.
+Metal provides a convenient method to pass small amounts of data to shaders via the `MTLBuffer::setVertexBytes` method. The `FrameData` structure is small enough that the sample *could* use `setVertexBytes` to pass it to the vertex shader. However, passing larger amounts of data requires using `MTLBuffer` objects. To demonstrate passing a large amount of data, the sample passes the `FrameData` structure using a series of  Metal buffers.
 
-Metal provides a convenient method to pass small amounts of data to shaders via the `setVertexBytes()` method. The `FrameData` structure is small enough that the sample *could* use `setVertexBytes()` to pass it to the vertex shader. However, passing larger amounts of data requires using `MTL::Buffer` objects. To demonstrate passing a large amount of data, the sample passes the `FrameData` structure using a series of  Metal buffers.
-
-``` other
+```objective-c
 for ( int i = 0; i < Renderer::kMaxFramesInFlight; ++i )
 {
-    _pFrameData[ i ]= _pDevice->newBuffer( sizeof( FrameData ), MTL::ResourceStorageModeManaged );
+    _pFrameData[ i ]= [_pDevice newBufferWithLength:sizeof(FrameData) options:MTLResourceStorageModeManaged];
 }
 ```
 
-The `buildFrameData()` function creates `kMaxFramesInFlight` or `3` buffers to store three versions of the FrameData structure. The renderer uses multiple versions of these buffers to avoid a data race condition where the CPU writes a new value to the buffer while the GPU simultaneously reads from the buffer.  It cycles through three buffers which allows the CPU to update one buffer while GPU reads from another.
+`_pFrameBuffer` stores three versions of the FrameData structure. The renderer uses multiple versions of these buffers to avoid a data race condition where the CPU writes a new value to the buffer while the GPU simultaneously reads from the buffer.  It cycles through three buffers which allows the CPU to update one buffer while GPU reads from another.
 
-``` other
-_frame = (_frame + 1) % Renderer::kMaxFramesInFlight;
-MTL::Buffer* pFrameDataBuffer = _pFrameData[ _frame ];
+The renderer uses a *semaphore* to explicitly synchronize buffer updates. This ensures the CPU does not update a buffer the GPU is currently processing data from.
+
+Upon initialization, the renderer creates the semaphore with a value of `kMaxFramesInFlight = 3`.
+
+```c
+_semaphore = dispatch_semaphore_create( kMaxFramesInFlight );
 ```
 
-The renderer uses a *semaphore* to explicitly synchronize buffer updates. This ensures that the CPU isn't updating the same buffer the GPU reads from.
+At the beginning of each frame, the renderer calls `dispatch_semaphore_wait`. This forces to CPU to wait if the GPU has not finished reading from the current _frame buffer in the the cycle.
 
-Upon initialization, the renderer creates the semaphore with a value of `kMaxFramesInFlight`.
-
-``` other
-_semaphore = dispatch_semaphore_create( Renderer::kMaxFramesInFlight );
-```
-
-At the beginning of each frame, the renderer calls `dispatch_semaphore_wait()`. This forces to CPU to wait if the GPU has not finished reading from the next buffer in the the cycle.
-
-``` other
+```c
 dispatch_semaphore_wait( _semaphore, DISPATCH_TIME_FOREVER );
 ```
 
-The renderer receives a notification that the GPU has finished processing each command buffer via a *completed handler* closure.  
+The renderer receives a signal when the GPU has finished processing each command buffer via a *completed handler* closure.  
 
-``` other
-Renderer* pRenderer = this;
-pCmd->addCompletedHandler( ^void( MTL::CommandBuffer* pCmd ){
-    dispatch_semaphore_signal( pRenderer->_semaphore );
-});
+```objective-c
+[pCmd addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+    dispatch_semaphore_signal(_semaphore);
+}];
 ```
-
-Completed handlers are closures that Metal invokes when the GPU completes execution of the command buffer. The renderer sets up this completed handler to call  `dispatch_semaphore_signal()`. 
 
 Once the renderer has a buffer it can safely use, it overwrites the buffer’s contents with a new value. Because these are managed storage buffers, the sample must notify Metal of the content change.
 
-``` other
-reinterpret_cast< FrameData * >( pFrameDataBuffer->contents() )->angle = (_angle += 0.01f);
-pFrameDataBuffer->didModifyRange( NS::Range::Make( 0, sizeof( FrameData ) ) );
+```objective-c
+((FrameData *)pFrameDataBuffer.contents)->angle = (_angle += 0.01f);
+[pFrameDataBuffer didModifyRange:NSMakeRange(0, pFrameDataBuffer.length)];
 ```
-
-Finally, to implement the animation, the sample extends the vertex shader to retrieve the angle variable, calculate the rotation matrix, and transform the vertex positions.
-
-``` other
-float a = frameData->angle;
-float3x3 rotationMatrix = float3x3( sin(a), cos(a), 0.0, cos(a), -sin(a), 0.0, 0.0, 0.0, 1.0 );
-v2f o;
-o.position = float4( rotationMatrix * vertexData->positions[ vertexId ], 1.0 );
-```
-
-Because the angle is slowly updated every frame, it produces the gentle roll rotation of the triangle.
 
 ## Sample 4: Draw Multiple Instances of an Object
 

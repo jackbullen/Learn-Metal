@@ -2,6 +2,13 @@
 #import <AppKit/AppKit.h>
 #import <MetalKit/MetalKit.h>
 
+static const size_t kMaxFramesInFlight = 3;
+
+struct FrameData
+{
+    float angle;
+};
+
 @interface Renderer: NSObject
 - (instancetype)initWithDevice:(id<MTLDevice>)device;
 - (void)buildShaders;
@@ -108,7 +115,7 @@ int main(int argc, const char *argv[])
     [_pView setDelegate:_pViewDelegate];
 
     [_pWindow setContentView:_pView];
-    [_pWindow setTitle:@"02 - Argument Buffers"];
+    [_pWindow setTitle:@"03 - Animation"];
     [_pWindow makeKeyAndOrderFront:nil];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -168,6 +175,10 @@ int main(int argc, const char *argv[])
     id<MTLBuffer> _pArgBuffer;
     id<MTLBuffer> _pVertexPositionsBuffer;
     id<MTLBuffer> _pVertexColorsBuffer;
+    id<MTLBuffer> _pFrameData[kMaxFramesInFlight];
+    int _frame;
+    float _angle;
+    dispatch_semaphore_t _semaphore;
 }
 @end
 
@@ -182,6 +193,8 @@ int main(int argc, const char *argv[])
         _pCommandQueue = [_pDevice newCommandQueue];
         [self buildShaders];
         [self buildBuffers];
+
+        _semaphore = dispatch_semaphore_create(kMaxFramesInFlight);
     }
     return self;
 }
@@ -190,6 +203,10 @@ int main(int argc, const char *argv[])
 {
     _pVertexPositionsBuffer = nil;
     _pVertexColorsBuffer = nil;
+    for (int i = 0; i < kMaxFramesInFlight; i++)
+    {
+        _pFrameData[i] = nil;
+    }
     _pShaderLibrary = nil;
     _pArgBuffer = nil;
     [super dealloc];
@@ -210,12 +227,19 @@ int main(int argc, const char *argv[])
             device float3* positions [[id(0)]]; \n\
             device float3* colors [[id(1)]]; \n\
         }; \n\
+        struct FrameData \n\
+        { \n\
+            float angle; \n\
+        }; \n\
         v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]], \n\
+                              device const FrameData* frameData [[buffer(1)]], \n\
                               uint vertexId [[vertex_id]]) \n\
         { \n\
             v2f o; \n\
-            o.position = float4(vertexData->positions[vertexId], 1.0); \n\
-            o.color = half3(vertexData->colors[vertexId]); \n\
+            float a = frameData->angle; \n\
+            float3x3 Rz = float3x3( sin(a), cos(a), 0.0, cos(a), -sin(a), 0.0, 0.0, 0.0, 1.0 ); \n\
+            o.position = float4(Rz * vertexData->positions[vertexId], 1.0); \n\
+            o.color = half3(Rz * vertexData->colors[vertexId]); \n\
             return o; \n\
         } \n\
         half4 fragment fragmentMain(v2f in [[stage_in]]) \n\
@@ -300,13 +324,32 @@ int main(int argc, const char *argv[])
 
     pVertexFn = nil;
     pArgEncoder = nil;
+
+    for (int i = 0; i < kMaxFramesInFlight; i++)
+    {
+        _pFrameData[i] = [_pDevice newBufferWithLength:sizeof(FrameData) options:MTLResourceStorageModeManaged];
+    }
 }
 
 - (void)draw:(MTKView *)pView
 {
     @autoreleasepool
     {
+        // this could go later for a slight optimization.. i think?
+        dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
+
+        _frame = (_frame + 1) % kMaxFramesInFlight;
+        id<MTLBuffer> pFrameDataBuffer = _pFrameData[_frame];
+
+        ((FrameData *)pFrameDataBuffer.contents)->angle = (_angle += 0.01f);
+        [pFrameDataBuffer didModifyRange:NSMakeRange(0, pFrameDataBuffer.length)];
+
         id<MTLCommandBuffer> pCmd = [_pCommandQueue commandBuffer];
+
+        [pCmd addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+            dispatch_semaphore_signal(_semaphore);
+        }];
+
         MTLRenderPassDescriptor* pRpd = pView.currentRenderPassDescriptor;
         id<MTLRenderCommandEncoder> pEnc = [pCmd renderCommandEncoderWithDescriptor:pRpd];
 
@@ -315,6 +358,8 @@ int main(int argc, const char *argv[])
         [pEnc setVertexBuffer:_pArgBuffer offset:0 atIndex:0];
         [pEnc useResource:_pVertexPositionsBuffer usage:MTLResourceUsageRead];
         [pEnc useResource:_pVertexColorsBuffer usage:MTLResourceUsageRead];
+
+        [pEnc setVertexBuffer:pFrameDataBuffer offset:0 atIndex:1];
 
         [pEnc drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
 
