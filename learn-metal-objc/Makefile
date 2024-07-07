@@ -3,7 +3,7 @@ OBJS := $(patsubst src/%.mm, obj/%.o, $(SRCS))
 EXES := $(patsubst src/%.mm, bin/%, $(SRCS))
 
 CC := clang++
-CFLAGS := -Wall -std=c++17 -I../metal-cpp -I../metal-cpp-extensions -fno-objc-arc
+CFLAGS := -Wall -std=c++17 -fno-objc-arc
 LDFLAGS := -framework Metal -framework Foundation -framework Cocoa -framework CoreGraphics -framework MetalKit
 
 ifdef DEBUG
