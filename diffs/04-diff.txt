@@ -1,0 +1,224 @@
+29a30,32
+> static constexpr size_t kNumInstances = 32;
+> static constexpr size_t kMaxFramesInFlight = 3;
+> 
+40d42
+<         void buildFrameData();
+48,51c50,52
+<         MTL::Buffer* _pArgBuffer;
+<         MTL::Buffer* _pVertexPositionsBuffer;
+<         MTL::Buffer* _pVertexColorsBuffer;
+<         MTL::Buffer* _pFrameData[3];
+---
+>         MTL::Buffer* _pVertexDataBuffer;
+>         MTL::Buffer* _pInstanceDataBuffer[kMaxFramesInFlight];
+>         MTL::Buffer* _pIndexBuffer;
+187c188
+<     _pWindow->setTitle( NS::String::string( "03 - Animation", NS::StringEncoding::UTF8StringEncoding ) );
+---
+>     _pWindow->setTitle( NS::String::string( "04 - Instancing", NS::StringEncoding::UTF8StringEncoding ) );
+238d238
+<     buildFrameData();
+246,249c246,247
+<     _pArgBuffer->release();
+<     _pVertexPositionsBuffer->release();
+<     _pVertexColorsBuffer->release();
+<     for ( int i = 0; i <  Renderer::kMaxFramesInFlight; ++i )
+---
+>     _pVertexDataBuffer->release();
+>     for ( int i = 0; i < kMaxFramesInFlight; ++i )
+251c249
+<         _pFrameData[i]->release();
+---
+>         _pInstanceDataBuffer[i]->release();
+252a251
+>     _pIndexBuffer->release();
+257a257,265
+> namespace shader_types
+> {
+>     struct InstanceData
+>     {
+>         simd::float4x4 instanceTransform;
+>         simd::float4 instanceColor;
+>     };
+> }
+> 
+274,275c282
+<             device float3* positions [[id(0)]];
+<             device float3* colors [[id(1)]];
+---
+>             float3 position;
+278c285
+<         struct FrameData
+---
+>         struct InstanceData
+280c287,288
+<             float angle;
+---
+>             float4x4 instanceTransform;
+>             float4 instanceColor;
+283c291,294
+<         v2f vertex vertexMain( device const VertexData* vertexData [[buffer(0)]], constant FrameData* frameData [[buffer(1)]], uint vertexId [[vertex_id]] )
+---
+>         v2f vertex vertexMain( device const VertexData* vertexData [[buffer(0)]],
+>                                device const InstanceData* instanceData [[buffer(1)]],
+>                                uint vertexId [[vertex_id]],
+>                                uint instanceId [[instance_id]] )
+285,286d295
+<             float a = frameData->angle;
+<             float3x3 rotationMatrix = float3x3( sin(a), cos(a), 0.0, cos(a), -sin(a), 0.0, 0.0, 0.0, 1.0 );
+288,289c297,299
+<             o.position = float4( rotationMatrix * vertexData->positions[ vertexId ], 1.0 );
+<             o.color = half3(vertexData->colors[ vertexId ]);
+---
+>             float4 pos = float4( vertexData[ vertexId ].position, 1.0 );
+>             o.position = instanceData[ instanceId ].instanceTransform * pos;
+>             o.color = half3( instanceData[ instanceId ].instanceColor.rgb );
+330c340
+<     const size_t NumVertices = 3;
+---
+>     using simd::float3;
+332,337c342
+<     simd::float3 positions[NumVertices] =
+<     {
+<         { -0.8f,  0.8f, 0.0f },
+<         {  0.0f, -0.8f, 0.0f },
+<         { +0.8f,  0.8f, 0.0f }
+<     };
+---
+>     const float s = 0.5f;
+339,343c344,348
+<     simd::float3 colors[NumVertices] =
+<     {
+<         {  1.0, 0.3f, 0.2f },
+<         {  0.8f, 1.0, 0.0f },
+<         {  0.8f, 0.0f, 1.0 }
+---
+>     float3 verts[] = {
+>         { -s, -s, +s },
+>         { +s, -s, +s },
+>         { +s, +s, +s },
+>         { -s, +s, +s }
+346,365c351,354
+<     const size_t positionsDataSize = NumVertices * sizeof( simd::float3 );
+<     const size_t colorDataSize = NumVertices * sizeof( simd::float3 );
+< 
+<     MTL::Buffer* pVertexPositionsBuffer = _pDevice->newBuffer( positionsDataSize, MTL::ResourceStorageModeManaged );
+<     MTL::Buffer* pVertexColorsBuffer = _pDevice->newBuffer( colorDataSize, MTL::ResourceStorageModeManaged );
+< 
+<     _pVertexPositionsBuffer = pVertexPositionsBuffer;
+<     _pVertexColorsBuffer = pVertexColorsBuffer;
+<     
+<     memcpy( _pVertexPositionsBuffer->contents(), positions, positionsDataSize );
+<     memcpy( _pVertexColorsBuffer->contents(), colors, colorDataSize );
+< 
+<     _pVertexPositionsBuffer->didModifyRange( NS::Range::Make( 0, _pVertexPositionsBuffer->length() ) );
+<     _pVertexColorsBuffer->didModifyRange( NS::Range::Make( 0, _pVertexColorsBuffer->length() ) );
+< 
+<     using NS::StringEncoding::UTF8StringEncoding;
+<     assert( _pShaderLibrary );
+< 
+<     MTL::Function* pVertexFn = _pShaderLibrary->newFunction( NS::String::string( "vertexMain", UTF8StringEncoding ) );
+<     MTL::ArgumentEncoder* pArgEncoder = pVertexFn->newArgumentEncoder( 0 );
+---
+>     uint16_t indices[] = {
+>         0, 1, 2,
+>         2, 3, 0,
+>     };
+367,368c356,357
+<     MTL::Buffer* pArgBuffer = _pDevice->newBuffer( pArgEncoder->encodedLength(), MTL::ResourceStorageModeManaged );
+<     _pArgBuffer = pArgBuffer;
+---
+>     const size_t vertexDataSize = sizeof( verts );
+>     const size_t indexDataSize = sizeof( indices );
+370c359,360
+<     pArgEncoder->setArgumentBuffer( _pArgBuffer, 0 );
+---
+>     MTL::Buffer* pVertexBuffer = _pDevice->newBuffer( vertexDataSize, MTL::ResourceStorageModeManaged );
+>     MTL::Buffer* pIndexBuffer = _pDevice->newBuffer( indexDataSize, MTL::ResourceStorageModeManaged );
+372,373c362,363
+<     pArgEncoder->setBuffer( _pVertexPositionsBuffer, 0, 0 );
+<     pArgEncoder->setBuffer( _pVertexColorsBuffer, 0, 1 );
+---
+>     _pVertexDataBuffer = pVertexBuffer;
+>     _pIndexBuffer = pIndexBuffer;
+375c365,366
+<     _pArgBuffer->didModifyRange( NS::Range::Make( 0, _pArgBuffer->length() ) );
+---
+>     memcpy( _pVertexDataBuffer->contents(), verts, vertexDataSize );
+>     memcpy( _pIndexBuffer->contents(), indices, indexDataSize );
+377,384c368,369
+<     pVertexFn->release();
+<     pArgEncoder->release();
+< }
+< 
+< struct FrameData
+< {
+<     float angle;
+< };
+---
+>     _pVertexDataBuffer->didModifyRange( NS::Range::Make( 0, _pVertexDataBuffer->length() ) );
+>     _pIndexBuffer->didModifyRange( NS::Range::Make( 0, _pIndexBuffer->length() ) );
+386,388c371,372
+< void Renderer::buildFrameData()
+< {
+<     for ( int i = 0; i < Renderer::kMaxFramesInFlight; ++i )
+---
+>     const size_t instanceDataSize = kMaxFramesInFlight * kNumInstances * sizeof( shader_types::InstanceData );
+>     for ( size_t i = 0; i < kMaxFramesInFlight; ++i )
+390c374
+<         _pFrameData[ i ]= _pDevice->newBuffer( sizeof( FrameData ), MTL::ResourceStorageModeManaged );
+---
+>         _pInstanceDataBuffer[ i ] = _pDevice->newBuffer( instanceDataSize, MTL::ResourceStorageModeManaged );
+395a380,382
+>     using simd::float4;
+>     using simd::float4x4;
+> 
+399c386
+<     MTL::Buffer* pFrameDataBuffer = _pFrameData[ _frame ];
+---
+>     MTL::Buffer* pInstanceDataBuffer = _pInstanceDataBuffer[ _frame ];
+408,409c395,415
+<     reinterpret_cast< FrameData * >( pFrameDataBuffer->contents() )->angle = (_angle += 0.01f);
+<     pFrameDataBuffer->didModifyRange( NS::Range::Make( 0, sizeof( FrameData ) ) );
+---
+>     _angle += 0.01f;
+> 
+>     const float scl = 0.1f;
+>     shader_types::InstanceData* pInstanceData = reinterpret_cast< shader_types::InstanceData *>( pInstanceDataBuffer->contents() );
+>     for ( size_t i = 0; i < kNumInstances; ++i )
+>     {
+>         float iDivNumInstances = i / (float)kNumInstances;
+>         float xoff = (iDivNumInstances * 2.0f - 1.0f) + (1.f/kNumInstances);
+>         float yoff = sin( ( iDivNumInstances + _angle ) * 2.0f * M_PI);
+>         pInstanceData[ i ].instanceTransform = (float4x4){ (float4){ scl * sinf(_angle), scl * cosf(_angle), 0.f, 0.f },
+>                                                            (float4){ scl * cosf(_angle), scl * -sinf(_angle), 0.f, 0.f },
+>                                                            (float4){ 0.f, 0.f, scl, 0.f },
+>                                                            (float4){ xoff, yoff, 0.f, 1.f } };
+> 
+>         float r = iDivNumInstances;
+>         float g = 1.0f - r;
+>         float b = sinf( M_PI * 2.0f * iDivNumInstances );
+>         pInstanceData[ i ].instanceColor = (float4){ r, g, b, 1.0f };
+>     }
+>     pInstanceDataBuffer->didModifyRange( NS::Range::Make( 0, pInstanceDataBuffer->length() ) );
+> 
+415,417c421,422
+<     pEnc->setVertexBuffer( _pArgBuffer, 0, 0 );
+<     pEnc->useResource( _pVertexPositionsBuffer, MTL::ResourceUsageRead );
+<     pEnc->useResource( _pVertexColorsBuffer, MTL::ResourceUsageRead );
+---
+>     pEnc->setVertexBuffer( _pVertexDataBuffer, /* offset */ 0, /* index */ 0 );
+>     pEnc->setVertexBuffer( pInstanceDataBuffer, /* offset */ 0, /* index */ 1 );
+419,420c424,431
+<     pEnc->setVertexBuffer( pFrameDataBuffer, 0, 1 );
+<     pEnc->drawPrimitives( MTL::PrimitiveType::PrimitiveTypeTriangle, NS::UInteger(0), NS::UInteger(3) );
+---
+>     //
+>     // void drawIndexedPrimitives( PrimitiveType primitiveType, NS::UInteger indexCount, IndexType indexType,
+>     //                             const class Buffer* pIndexBuffer, NS::UInteger indexBufferOffset, NS::UInteger instanceCount );
+>     pEnc->drawIndexedPrimitives( MTL::PrimitiveType::PrimitiveTypeTriangle,
+>                                 6, MTL::IndexType::IndexTypeUInt16,
+>                                 _pIndexBuffer,
+>                                 0,
+>                                 kNumInstances );

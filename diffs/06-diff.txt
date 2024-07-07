@@ -1,0 +1,198 @@
+30c30,33
+< static constexpr size_t kNumInstances = 32;
+---
+> static constexpr size_t kInstanceRows = 10;
+> static constexpr size_t kInstanceColumns = 10;
+> static constexpr size_t kInstanceDepth = 10;
+> static constexpr size_t kNumInstances = (kInstanceRows * kInstanceColumns * kInstanceDepth);
+45a49
+>     simd::float3x3 discardTranslation( const simd::float4x4& m );
+185c189
+<     CGRect frame = (CGRect){ {100.0, 100.0}, {512.0, 512.0} };
+---
+>     CGRect frame = (CGRect){ {100.0, 100.0}, {1024.0, 1024.0} };
+205c209
+<     _pWindow->setTitle( NS::String::string( "05 - Perspective", NS::StringEncoding::UTF8StringEncoding ) );
+---
+>     _pWindow->setTitle( NS::String::string( "06 - Lighting", NS::StringEncoding::UTF8StringEncoding ) );
+321a326,330
+>     simd::float3x3 discardTranslation( const simd::float4x4& m )
+>     {
+>         return simd_matrix( m.columns[0].xyz, m.columns[1].xyz, m.columns[2].xyz );
+>     }
+> 
+363a373,378
+>     struct VertexData
+>     {
+>         simd::float3 position;
+>         simd::float3 normal;
+>     };
+> 
+366a382
+>         simd::float3x3 instanceNormalTransform;
+373a390
+>         simd::float3x3 worldNormalTransform;
+387a405
+>             float3 normal;
+393a412
+>             float3 normal;
+398a418
+>             float3x3 instanceNormalTransform;
+405a426
+>             float3x3 worldNormalTransform;
+415c436,438
+<             float4 pos = float4( vertexData[ vertexId ].position, 1.0 );
+---
+> 
+>             const device VertexData& vd = vertexData[ vertexId ];
+>             float4 pos = float4( vd.position, 1.0 );
+418a442,446
+> 
+>             float3 normal = instanceData[ instanceId ].instanceNormalTransform * vd.normal;
+>             normal = cameraData.worldNormalTransform * normal;
+>             o.normal = normal;
+> 
+425c453,458
+<             return half4( in.color, 1.0 );
+---
+>             // assume light coming from (front-top-right)
+>             float3 l = normalize(float3( 1.0, 1.0, 0.8 ));
+>             float3 n = normalize( in.normal );
+> 
+>             float ndotl = saturate( dot( n, l ) );
+>             return half4( in.color * 0.1 + in.color * ndotl, 1.0 );
+475,484c508,538
+<     float3 verts[] = {
+<         { -s, -s, +s },
+<         { +s, -s, +s },
+<         { +s, +s, +s },
+<         { -s, +s, +s },
+< 
+<         { -s, -s, -s },
+<         { -s, +s, -s },
+<         { +s, +s, -s },
+<         { +s, -s, -s }
+---
+>     shader_types::VertexData verts[] = {
+>         //   Positions          Normals
+>         { { -s, -s, +s }, { 0.f,  0.f,  1.f } },
+>         { { +s, -s, +s }, { 0.f,  0.f,  1.f } },
+>         { { +s, +s, +s }, { 0.f,  0.f,  1.f } },
+>         { { -s, +s, +s }, { 0.f,  0.f,  1.f } },
+> 
+>         { { +s, -s, +s }, { 1.f,  0.f,  0.f } },
+>         { { +s, -s, -s }, { 1.f,  0.f,  0.f } },
+>         { { +s, +s, -s }, { 1.f,  0.f,  0.f } },
+>         { { +s, +s, +s }, { 1.f,  0.f,  0.f } },
+> 
+>         { { +s, -s, -s }, { 0.f,  0.f, -1.f } },
+>         { { -s, -s, -s }, { 0.f,  0.f, -1.f } },
+>         { { -s, +s, -s }, { 0.f,  0.f, -1.f } },
+>         { { +s, +s, -s }, { 0.f,  0.f, -1.f } },
+> 
+>         { { -s, -s, -s }, { -1.f, 0.f,  0.f } },
+>         { { -s, -s, +s }, { -1.f, 0.f,  0.f } },
+>         { { -s, +s, +s }, { -1.f, 0.f,  0.f } },
+>         { { -s, +s, -s }, { -1.f, 0.f,  0.f } },
+> 
+>         { { -s, +s, +s }, { 0.f,  1.f,  0.f } },
+>         { { +s, +s, +s }, { 0.f,  1.f,  0.f } },
+>         { { +s, +s, -s }, { 0.f,  1.f,  0.f } },
+>         { { -s, +s, -s }, { 0.f,  1.f,  0.f } },
+> 
+>         { { -s, -s, -s }, { 0.f, -1.f,  0.f } },
+>         { { +s, -s, -s }, { 0.f, -1.f,  0.f } },
+>         { { +s, -s, +s }, { 0.f, -1.f,  0.f } },
+>         { { -s, -s, +s }, { 0.f, -1.f,  0.f } },
+488,504c542,547
+<         0, 1, 2, /* front */
+<         2, 3, 0,
+< 
+<         1, 7, 6, /* right */
+<         6, 2, 1,
+< 
+<         7, 4, 5, /* back */
+<         5, 6, 7,
+< 
+<         4, 0, 3, /* left */
+<         3, 5, 4,
+< 
+<         3, 2, 6, /* top */
+<         6, 5, 3,
+< 
+<         4, 7, 1, /* bottom */
+<         1, 0, 4
+---
+>          0,  1,  2,  2,  3,  0, /* front */
+>          4,  5,  6,  6,  7,  4, /* right */
+>          8,  9, 10, 10, 11,  8, /* back */
+>         12, 13, 14, 14, 15, 12, /* left */
+>         16, 17, 18, 18, 19, 16, /* top */
+>         20, 21, 22, 22, 23, 20, /* bottom */
+553c596,598
+<     _angle += 0.01f;
+---
+>     _angle += 0.002f;
+> 
+>     // Update instance positions:
+555c600
+<     const float scl = 0.1f;
+---
+>     const float scl = 0.2f;
+558,560c603
+<     float3 objectPosition = { 0.f, 0.f, -5.f };
+< 
+<     // Update instance positions:
+---
+>     float3 objectPosition = { 0.f, 0.f, -10.f };
+563c606,607
+<     float4x4 rr = math::makeYRotate( -_angle );
+---
+>     float4x4 rr1 = math::makeYRotate( -_angle );
+>     float4x4 rr0 = math::makeXRotate( _angle * 0.5 );
+565c609
+<     float4x4 fullObjectRot = rt * rr * rtInv;
+---
+>     float4x4 fullObjectRot = rt * rr1 * rr0 * rtInv;
+566a611,613
+>     size_t ix = 0;
+>     size_t iy = 0;
+>     size_t iz = 0;
+569,571c616,625
+<         float iDivNumInstances = i / (float)kNumInstances;
+<         float xoff = (iDivNumInstances * 2.20f - 1.0f) + (1.f/kNumInstances);
+<         float yoff = sin( ( iDivNumInstances + _angle ) * 2.0f * M_PI);
+---
+>         if ( ix == kInstanceRows )
+>         {
+>             ix = 0;
+>             iy += 1;
+>         }
+>         if ( iy == kInstanceRows )
+>         {
+>             iy = 0;
+>             iz += 1;
+>         }
+573d626
+<         // Use the tiny math library to apply a 3D transformation to the instance.
+575,577c628,634
+<         float4x4 zrot = math::makeZRotate( _angle );
+<         float4x4 yrot = math::makeYRotate( _angle );
+<         float4x4 translate = math::makeTranslate( math::add( objectPosition, { xoff, yoff, 0.f } ) );
+---
+>         float4x4 zrot = math::makeZRotate( _angle * sinf((float)ix) );
+>         float4x4 yrot = math::makeYRotate( _angle * cosf((float)iy));
+> 
+>         float x = ((float)ix - (float)kInstanceRows/2.f) * (2.f * scl) + scl;
+>         float y = ((float)iy - (float)kInstanceColumns/2.f) * (2.f * scl) + scl;
+>         float z = ((float)iz - (float)kInstanceDepth/2.f) * (2.f * scl);
+>         float4x4 translate = math::makeTranslate( math::add( objectPosition, { x, y, z } ) );
+579a637
+>         pInstanceData[ i ].instanceNormalTransform = math::discardTranslation( pInstanceData[ i ].instanceTransform );
+580a639
+>         float iDivNumInstances = i / (float)kNumInstances;
+584a644,645
+> 
+>         ix += 1;
+593a655
+>     pCameraData->worldNormalTransform = math::discardTranslation( pCameraData->worldTransform );
