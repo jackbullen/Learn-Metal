@@ -1,12 +1,15 @@
 #import <Metal/Metal.h>
 #import <AppKit/AppKit.h>
 #import <MetalKit/MetalKit.h>
+#import <simd/simd.h>
 
+#define kNumInstances 32
 static const size_t kMaxFramesInFlight = 3;
 
-struct FrameData
+struct InstanceData
 {
-    float angle;
+    simd::float4x4 instanceTransform;
+    simd::float4 instanceColor;
 };
 
 @interface Renderer: NSObject
@@ -115,7 +118,7 @@ int main(int argc, const char *argv[])
     [_pView setDelegate:_pViewDelegate];
 
     [_pWindow setContentView:_pView];
-    [_pWindow setTitle:@"03 - Animation"];
+    [_pWindow setTitle:@"04 - Instancing"];
     [_pWindow makeKeyAndOrderFront:nil];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -172,10 +175,9 @@ int main(int argc, const char *argv[])
     id<MTLCommandQueue> _pCommandQueue;
     id<MTLLibrary> _pShaderLibrary;
     id<MTLRenderPipelineState> _pPSO;
-    id<MTLBuffer> _pArgBuffer;
-    id<MTLBuffer> _pVertexPositionsBuffer;
-    id<MTLBuffer> _pVertexColorsBuffer;
-    id<MTLBuffer> _pFrameData[kMaxFramesInFlight];
+    id<MTLBuffer> _pVertexDataBuffer;
+    id<MTLBuffer> _pInstanceDataBuffer[kMaxFramesInFlight];
+    id<MTLBuffer> _pIndexBuffer;
     int _frame;
     float _angle;
     dispatch_semaphore_t _semaphore;
@@ -201,14 +203,15 @@ int main(int argc, const char *argv[])
 
 - (void)dealloc 
 {
-    _pVertexPositionsBuffer = nil;
-    _pVertexColorsBuffer = nil;
+    _pDevice = nil;
+    _pPSO = nil;
+    _pCommandQueue = nil;
+    _pVertexDataBuffer = nil;
     for (int i = 0; i < kMaxFramesInFlight; i++)
     {
-        _pFrameData[i] = nil;
+        _pInstanceDataBuffer[i] = nil;
     }
     _pShaderLibrary = nil;
-    _pArgBuffer = nil;
     [super dealloc];
 }
 
@@ -220,31 +223,32 @@ int main(int argc, const char *argv[])
         struct v2f \n\
         { \n\
             float4 position [[position]]; \n\
-            half3 color; \n\
+            half4 color; \n\
         }; \n\
         struct VertexData \n\
         { \n\
-            device float3* positions [[id(0)]]; \n\
-            device float3* colors [[id(1)]]; \n\
+            float3 position; \n\
         }; \n\
-        struct FrameData \n\
+        struct InstanceData \n\
         { \n\
-            float angle; \n\
+            float4x4 instanceTransform; \n\
+            float4 instanceColor; \n\
         }; \n\
         v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]], \n\
-                              device const FrameData* frameData [[buffer(1)]], \n\
-                              uint vertexId [[vertex_id]]) \n\
+                              device const InstanceData* instanceData [[buffer(1)]], \n\
+                              uint vertexId [[vertex_id]], \n\
+                              uint instanceId [[instance_id]]) \n\
         { \n\
             v2f o; \n\
-            float a = frameData->angle; \n\
-            float3x3 Rz = float3x3( sin(a), cos(a), 0.0, cos(a), -sin(a), 0.0, 0.0, 0.0, 1.0 ); \n\
-            o.position = float4(Rz * vertexData->positions[vertexId], 1.0); \n\
-            o.color = half3(Rz * vertexData->colors[vertexId]); \n\
+            float4 pos = float4(vertexData[vertexId].position, 1.0); \n\
+            o.position = instanceData[instanceId].instanceTransform * pos; \n\
+            o.color = half4(half3(instanceData[instanceId].instanceColor.rgb), \n\
+                                  instanceData[instanceId].instanceColor.w); \n\
             return o; \n\
         } \n\
         half4 fragment fragmentMain(v2f in [[stage_in]]) \n\
         { \n\
-            return half4(in.color, 1.0); \n\
+            return half4(in.color.xyz, 1.0); \n\
         } \n\
     ";
 
@@ -285,49 +289,33 @@ int main(int argc, const char *argv[])
 
 - (void)buildBuffers
 {
-    const size_t NumVertices = 3;
+    const float s = 0.5f;
 
-    simd::float3 positions[NumVertices] =
-    {
-        { -0.8f,  0.8f, 0.0f },
-        {  0.0f, -0.8f, 0.0f },
-        { +0.8f,  0.8f, 0.0f }
+    simd::float3 vertices[] = {
+        { -s, -s, +s },
+        { +s, -s, +s },
+        { +s, +s, +s },
+        { -s, +s, +s }
     };
 
-    simd::float3 colors[NumVertices] =
-    {
-        {  1.0, 0.3f, 0.2f },
-        {  0.8f, 1.0, 0.0f },
-        {  0.8f, 0.0f, 1.0 }
+    uint16_t indices[] = {
+        0, 1, 2,
+        2, 3, 0,
     };
 
-    const size_t positionsDataSize = sizeof(positions);
-    const size_t colorsDataSize = sizeof(colors);
+    const size_t verticesDataSize = sizeof(vertices);
+    const size_t indicesDataSize = sizeof(indices);
 
-    _pVertexPositionsBuffer = [_pDevice newBufferWithBytes:positions length:positionsDataSize options:MTLResourceStorageModeManaged];
-    [_pVertexPositionsBuffer didModifyRange:NSMakeRange(0, _pVertexPositionsBuffer.length)];
+    _pVertexDataBuffer = [_pDevice newBufferWithBytes:vertices length:verticesDataSize options:MTLResourceStorageModeManaged];
+    [_pVertexDataBuffer didModifyRange:NSMakeRange(0, _pVertexDataBuffer.length)];
 
-    _pVertexColorsBuffer = [_pDevice newBufferWithBytes:colors length:colorsDataSize options:MTLResourceStorageModeManaged];
-    [_pVertexColorsBuffer didModifyRange:NSMakeRange(0, _pVertexColorsBuffer.length)];
+    _pIndexBuffer = [_pDevice newBufferWithBytes:indices length:indicesDataSize options:MTLResourceStorageModeManaged];
+    [_pIndexBuffer didModifyRange:NSMakeRange(0, _pIndexBuffer.length)];
 
-    id<MTLFunction> pVertexFn = [_pShaderLibrary newFunctionWithName:@"vertexMain"];
-    id<MTLArgumentEncoder> pArgEncoder = [pVertexFn newArgumentEncoderWithBufferIndex:0];
-
-    _pArgBuffer = [_pDevice newBufferWithLength:[pArgEncoder encodedLength] options:MTLResourceStorageModeManaged];
-
-    [pArgEncoder setArgumentBuffer:_pArgBuffer offset:0];
-
-    [pArgEncoder setBuffer:_pVertexPositionsBuffer offset:0 atIndex:0];
-    [pArgEncoder setBuffer:_pVertexColorsBuffer offset:0 atIndex:1];
-
-    [_pArgBuffer didModifyRange:NSMakeRange(0, _pArgBuffer.length)];
-
-    pVertexFn = nil;
-    pArgEncoder = nil;
-
+    const size_t instanceDataSize = kNumInstances * sizeof( InstanceData );
     for (int i = 0; i < kMaxFramesInFlight; i++)
     {
-        _pFrameData[i] = [_pDevice newBufferWithLength:sizeof(FrameData) options:MTLResourceStorageModeManaged];
+        _pInstanceDataBuffer[i] = [_pDevice newBufferWithLength:instanceDataSize options:MTLResourceStorageModeManaged];
     }
 }
 
@@ -339,10 +327,7 @@ int main(int argc, const char *argv[])
         dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
 
         _frame = (_frame + 1) % kMaxFramesInFlight;
-        id<MTLBuffer> pFrameDataBuffer = _pFrameData[_frame];
-
-        ((FrameData *)pFrameDataBuffer.contents)->angle = (_angle += 0.01f);
-        [pFrameDataBuffer didModifyRange:NSMakeRange(0, pFrameDataBuffer.length)];
+        id<MTLBuffer> pInstanceDataBuffer = _pInstanceDataBuffer[_frame];
 
         id<MTLCommandBuffer> pCmd = [_pCommandQueue commandBuffer];
 
@@ -350,18 +335,43 @@ int main(int argc, const char *argv[])
             dispatch_semaphore_signal(_semaphore);
         }];
 
+        _angle += 0.01f;
+
+        const float scl = 0.1f;
+
+        InstanceData* pInstanceData = reinterpret_cast< InstanceData *>( pInstanceDataBuffer.contents );
+        for ( size_t i = 0; i < kNumInstances; ++i )
+        {
+            float iDivNumInstances = i / (float)kNumInstances;
+            float xoff = (iDivNumInstances * 2.0f - 1.0f) + (1.f/kNumInstances);
+            float yoff = sin(( iDivNumInstances + _angle ) * 2.0f * M_PI);
+            pInstanceData[i].instanceTransform = (simd::float4x4){ 
+                (simd::float4){ scl * sinf(_angle), scl * cosf(_angle) ,      0.f     ,   0.f },
+                (simd::float4){ scl * cosf(_angle), scl * -sinf(_angle),      0.f     ,   0.f },
+                (simd::float4){        0.f        ,        0.f         ,      scl     ,   0.f },
+                (simd::float4){        xoff       ,        yoff        ,      0.f     ,   1.f } };
+
+            float r = iDivNumInstances;
+            float g = 1.0f - r;
+            float b = sinf(M_PI * 2.0f * iDivNumInstances);
+            pInstanceData[i].instanceColor = (simd::float4){ r, g, b, 1.0f };
+        }
+        [pInstanceDataBuffer didModifyRange:NSMakeRange(0, pInstanceDataBuffer.length)];
+
         MTLRenderPassDescriptor* pRpd = pView.currentRenderPassDescriptor;
         id<MTLRenderCommandEncoder> pEnc = [pCmd renderCommandEncoderWithDescriptor:pRpd];
 
         [pEnc setRenderPipelineState:_pPSO];
 
-        [pEnc setVertexBuffer:_pArgBuffer offset:0 atIndex:0];
-        [pEnc useResource:_pVertexPositionsBuffer usage:MTLResourceUsageRead];
-        [pEnc useResource:_pVertexColorsBuffer usage:MTLResourceUsageRead];
+        [pEnc setVertexBuffer:_pVertexDataBuffer offset:0 atIndex:0];
+        [pEnc setVertexBuffer:pInstanceDataBuffer offset:0 atIndex:1];
 
-        [pEnc setVertexBuffer:pFrameDataBuffer offset:0 atIndex:1];
-
-        [pEnc drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+        [pEnc drawIndexedPrimitives:MTLPrimitiveTypeTriangle 
+                            indexCount: 6
+                            indexType: MTLIndexTypeUInt16
+                            indexBuffer: _pIndexBuffer
+                            indexBufferOffset: 0
+                            instanceCount:kNumInstances];
 
         [pEnc endEncoding];
         [pCmd presentDrawable:pView.currentDrawable];

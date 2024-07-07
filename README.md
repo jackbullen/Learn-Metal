@@ -188,62 +188,19 @@ Once the renderer has a buffer it can safely use, it overwrites the buffer’s c
 
 ## Sample 4: Draw Multiple Instances of an Object
 
-The `04-instancing` sample builds on the previous one to add *instancing*. This enables it to draw multiple primitives from a single draw command.
+`04-instancing` draws multiple primitives from a single draw command by transforming the same set of vertices to several positions, rendering the same object multiple times.
 
-Issuing a single draw call incurs some amount of overhead. With instancing, Metal can draw an object multiple times in a single draw call, reducing the number of calls required to render a scene.
+Issuing a draw call incurs some amount of overhead. Instancing reduces the number of calls required to render a scene.
 
-The renderer provides each instance with a unique value for positions and colors.  The renderer's `buildBuffers()` method creates a buffer that holds this data.
-
-``` other
-for ( size_t i = 0; i < kMaxFramesInFlight; ++i )
-{
-    _pInstanceDataBuffer[ i ] = _pDevice->newBuffer( instanceDataSize, MTL::ResourceStorageModeManaged );
-}
-```
-
-Similar to how the previous sample used the `_pFrameData` variable, this sample leverages three buffers for instance data to avoid race conditions between the CPU and GPU.
-
-Each frame, the renderer cycles to the next instance buffer.  It then iterates through each instance, calculating a new position, and updating the values in ``_pInstanceDataBuffer``.
-
-``` other
-shader_types::InstanceData* pInstanceData = reinterpret_cast< shader_types::InstanceData *>( pInstanceDataBuffer->contents() );
-for ( size_t i = 0; i < kNumInstances; ++i )
-{
-    float iDivNumInstances = i / (float)kNumInstances;
-    float xoff = (iDivNumInstances * 2.0f - 1.0f) + (1.f/kNumInstances);
-    float yoff = sin( ( iDivNumInstances + _angle ) * 2.0f * M_PI);
-    pInstanceData[ i ].instanceTransform = (float4x4){ (float4){ scl * sinf(_angle), scl * cosf(_angle), 0.f, 0.f },
-                                                       (float4){ scl * cosf(_angle), scl * -sinf(_angle), 0.f, 0.f },
-                                                       (float4){ 0.f, 0.f, scl, 0.f },
-                                                       (float4){ xoff, yoff, 0.f, 1.f } };
-
-    float r = iDivNumInstances;
-    float g = 1.0f - r;
-    float b = sinf( M_PI * 2.0f * iDivNumInstances );
-    pInstanceData[ i ].instanceColor = (float4){ r, g, b, 1.0f };
-}
-```
+The renderer provides each instance with a unique value for positions and colors.  The renderer's `buildBuffers` method creates a buffer that holds this data.
 
 With these buffers filled with up-to-date instance data, the `draw()` method encodes rendering commands.
 
-``` other
-pEnc->setVertexBuffer( pInstanceDataBuffer, /* offset */ 0, /* index */ 1 );
-
-//
-// void drawIndexedPrimitives( PrimitiveType primitiveType, NS::UInteger indexCount, IndexType indexType,
-//                             const class Buffer* pIndexBuffer, NS::UInteger indexBufferOffset, NS::UInteger instanceCount );
-pEnc->drawIndexedPrimitives( MTL::PrimitiveType::PrimitiveTypeTriangle,
-                            6, MTL::IndexType::IndexTypeUInt16,
-                            _pIndexBuffer,
-                            0,
-                            kNumInstances );
-```
-
-The renderer supplies the instance data to the vertex shader with a call to `setVertexBuffer()`.  It then issues a draw call with `drawIndexPrimitives()`.   By passing in `kNumInstances` or `32` to the `instanceCount` parameter of the method, Metal draws the object 32 times.
+The renderer supplies the instance data to the vertex shader with a call to `MTLRenderCommandEncoder::setVertexBuffer`.  It then issues a draw call with `MTLRenderCommandEncoder::drawIndexPrimitives`.
 
 Within the vertex shader, the sample determines what instance each vertex belongs to and retrieves the data specific to its instance.
 
-``` other
+```c++
 v2f vertex vertexMain( device const VertexData* vertexData [[buffer(0)]],
                        device const InstanceData* instanceData [[buffer(1)]],
                        uint vertexId [[vertex_id]],
@@ -257,7 +214,7 @@ v2f vertex vertexMain( device const VertexData* vertexData [[buffer(0)]],
 }
 ```
 
-The `[[instance_id]]` attribute in MSL contains the value of the instance as provided by the runtime. The sample uses this value to index into the `instanceData` buffer, which provides each instance's position and color.
+The `[[instance_id]]` attribute in MSL contains the value of the instance as provided by the runtime.
 
 ## Sample 5: Render 3D with Perspective Projection
 
