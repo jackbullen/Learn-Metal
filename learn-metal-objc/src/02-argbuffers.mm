@@ -108,7 +108,7 @@ int main(int argc, const char *argv[])
     [_pView setDelegate:_pViewDelegate];
 
     [_pWindow setContentView:_pView];
-    [_pWindow setTitle:@"01 - Primitive"];
+    [_pWindow setTitle:@"02 - Argument Buffers"];
     [_pWindow makeKeyAndOrderFront:nil];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -163,7 +163,9 @@ int main(int argc, const char *argv[])
 {
     id<MTLDevice> _pDevice;
     id<MTLCommandQueue> _pCommandQueue;
+    id<MTLLibrary> _pShaderLibrary;
     id<MTLRenderPipelineState> _pPSO;
+    id<MTLBuffer> _pArgBuffer;
     id<MTLBuffer> _pVertexPositionsBuffer;
     id<MTLBuffer> _pVertexColorsBuffer;
 }
@@ -188,6 +190,8 @@ int main(int argc, const char *argv[])
 {
     _pVertexPositionsBuffer = nil;
     _pVertexColorsBuffer = nil;
+    _pShaderLibrary = nil;
+    _pArgBuffer = nil;
     [super dealloc];
 }
 
@@ -201,13 +205,17 @@ int main(int argc, const char *argv[])
             float4 position [[position]]; \n\
             half3 color; \n\
         }; \n\
-        v2f vertex vertexMain(device const float3* positions [[buffer(0)]], \n\
-                              device const float3* colors [[buffer(1)]], \n\
+        struct VertexData \n\
+        { \n\
+            device float3* positions [[id(0)]]; \n\
+            device float3* colors [[id(1)]]; \n\
+        }; \n\
+        v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]], \n\
                               uint vertexId [[vertex_id]]) \n\
         { \n\
             v2f o; \n\
-            o.position = float4(positions[vertexId], 1.0); \n\
-            o.color = half3(colors[vertexId]); \n\
+            o.position = float4(vertexData->positions[vertexId], 1.0); \n\
+            o.color = half3(vertexData->colors[vertexId]); \n\
             return o; \n\
         } \n\
         half4 fragment fragmentMain(v2f in [[stage_in]]) \n\
@@ -217,21 +225,21 @@ int main(int argc, const char *argv[])
     ";
 
     NSError* error = nil;
-    id<MTLLibrary> pLibrary = [_pDevice newLibraryWithSource:shaderSrc options:nil error:&error];
-    if (!pLibrary)
+    _pShaderLibrary = [_pDevice newLibraryWithSource:shaderSrc options:nil error:&error];
+    if (!_pShaderLibrary)
     {
         NSLog(@"Could not create shader library: %@", error.localizedDescription);
         return;
     }
 
-    id<MTLFunction> pVertexFn = [pLibrary newFunctionWithName:@"vertexMain"];
+    id<MTLFunction> pVertexFn = [_pShaderLibrary newFunctionWithName:@"vertexMain"];
     if (!pVertexFn)
     {
         NSLog(@"Failed to load vertex function");
         return;
     }
 
-    id<MTLFunction> pFragFn = [pLibrary newFunctionWithName:@"fragmentMain"];
+    id<MTLFunction> pFragFn = [_pShaderLibrary newFunctionWithName:@"fragmentMain"];
     if (!pFragFn)
     {
         NSLog(@"Failed to load fragment function");
@@ -277,6 +285,21 @@ int main(int argc, const char *argv[])
 
     _pVertexColorsBuffer = [_pDevice newBufferWithBytes:colors length:colorsDataSize options:MTLResourceStorageModeManaged];
     [_pVertexColorsBuffer didModifyRange:NSMakeRange(0, _pVertexColorsBuffer.length)];
+
+    id<MTLFunction> pVertexFn = [_pShaderLibrary newFunctionWithName:@"vertexMain"];
+    id<MTLArgumentEncoder> pArgEncoder = [pVertexFn newArgumentEncoderWithBufferIndex:0];
+
+    _pArgBuffer = [_pDevice newBufferWithLength:[pArgEncoder encodedLength] options:MTLResourceStorageModeManaged];
+
+    [pArgEncoder setArgumentBuffer:_pArgBuffer offset:0];
+
+    [pArgEncoder setBuffer:_pVertexPositionsBuffer offset:0 atIndex:0];
+    [pArgEncoder setBuffer:_pVertexColorsBuffer offset:0 atIndex:1];
+
+    [_pArgBuffer didModifyRange:NSMakeRange(0, _pArgBuffer.length)];
+
+    pVertexFn = nil;
+    pArgEncoder = nil;
 }
 
 - (void)draw:(MTKView *)pView
@@ -289,8 +312,9 @@ int main(int argc, const char *argv[])
 
         [pEnc setRenderPipelineState:_pPSO];
 
-        [pEnc setVertexBuffer:_pVertexPositionsBuffer offset:0 atIndex:0];
-        [pEnc setVertexBuffer:_pVertexColorsBuffer offset:0 atIndex:1];
+        [pEnc setVertexBuffer:_pArgBuffer offset:0 atIndex:0];
+        [pEnc useResource:_pVertexPositionsBuffer usage:MTLResourceUsageRead];
+        [pEnc useResource:_pVertexColorsBuffer usage:MTLResourceUsageRead];
 
         [pEnc drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
 

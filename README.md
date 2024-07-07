@@ -4,10 +4,10 @@
 
 * 00 - window : Create a Window for Metal Rendering
 * 01 - primitive : Render a Triangle
+* 02 - argbuffers : Store Shader Arguments in a Buffer
 
 --- 
 
-* 02 - argbuffers : Store Shader Arguments in a Buffer
 * 03 - animation : Animate Rendering
 * 04 - instancing : Draw Multiple Instance of an Object
 * 05 - perspective : Render 3D with Perspective Projection
@@ -83,7 +83,7 @@ After the function creates the render command encoder, it calls the encoder's `s
 
 In the vertex shader function, the `positions` and `colors`  parameters use the `[[buffer(0)]]` and `[[buffer(1)]]` attributes. The sample calls `setVertexBuffer` using the indices declared with these attributes to pass the buffers to these parameters.
 
-``` other
+```c++
 v2f vertex vertexMain( uint vertexId [[vertex_id]],
                        device const float3* positions [[buffer(0)]],
                        device const float3* colors [[buffer(1)]] )
@@ -93,39 +93,24 @@ Once the `draw` method sets the vertex buffers, it encodes a draw command with a
 
 ## Sample 2: Store Shader Arguments in a Buffer
 
-The `02-argbuffers` sample builds on the previous sample and add an *argument buffer* to indirectly provide buffers to the vertex shader. Argument buffers are a particular type of buffer that contain references to Metal resource objects, including other buffers.
+`02-argbuffers` adds an *argument buffer* for the vertex data. Argument buffers are a buffer that contain references to can contain other buffers.
 
-This sample extends upon the `buildBuffers()` method and builds an argument buffer that contains references to the vertex position and color buffers.
+The renderer creates an argument encoder for the parameter of the shader. It calls the `MTLFunction::newArgumentEncoder` method with the index of the buffer parameter to encode.
 
-The renderer must first create an argument encoder from one of the parameters of the shader. It does this by calling the shader function's `newArgumentEncoder()` method with the index of the buffer parameter it wishes to encode.
+The encoder gets the parameter's memory requirements using the value returned from the `MTLArgumentEncoder::encodedLength` method.
 
-``` other
-MTL::Function* pVertexFn = _pShaderLibrary->newFunction( NS::String::string( "vertexMain", UTF8StringEncoding ) );
-MTL::ArgumentEncoder* pArgEncoder = pVertexFn->newArgumentEncoder( 0 );
-```
-
-The encoder object interprets a parameter's memory requirements and layout based on the parameter's type. Using the value returned by the encoder's `encodedLength()` method, the renderer creates an argument buffer. This ensures the buffer is large enough to encode arguments into.
-
-``` other
-MTL::Buffer* pArgBuffer = _pDevice->newBuffer( pArgEncoder->encodedLength(), MTL::ResourceStorageModeManaged );
-```
-
-The renderer then binds the argument buffer to the argument encoder via the `setArgumentBuffer()` method. This specifies the destination to which the encoder writes the object references.
-
-``` other
-pArgEncoder->setArgumentBuffer( _pArgBuffer, 0 );
-```
+The renderer then binds the argument buffer to the argument encoder via the `MTLArgumentEncoder::setArgumentBuffer` method. This specifies the destination to which the encoder writes the object references.
 
 With the buffer objects created and set, the renderer encodes references to the position data in index `0` and to the color data in  index `1`.
 
-``` other
-pArgEncoder->setBuffer( _pVertexPositionsBuffer, 0, 0 );
-pArgEncoder->setBuffer( _pVertexColorsBuffer, 0, 1 );
+```objective-c
+[pArgEncoder setBuffer:_pVertexPositionsBuffer offset:0 atIndex:0];
+[pArgEncoder setBuffer:_pVertexColorsBuffer offset:0 atIndex:1];
 ```
 
-The indices used with `setBuffer()` correspond to numbers used with the `[[id()]]` attribute specifier in the shader code.
+The indices input to `MTLArgumentEncoder::setBuffer` correspond to numbers used with the `[[id()]]` attribute specifier in the shader code.
 
-``` other
+```c++
 struct VertexData
 {
     device float3* positions [[id(0)]];
@@ -133,24 +118,20 @@ struct VertexData
 };
 ```
 
-With the buffers ready, the renderer can begin encoding render commands. First, it makes the argument buffer available to the vertex shader.
+With the buffers ready, the renderer can begin encoding render commands. 
 
-``` other
-pEnc->setVertexBuffer( _pArgBuffer, 0, 0 );
-pEnc->useResource( _pVertexPositionsBuffer, MTL::ResourceUsageRead );
-pEnc->useResource( _pVertexColorsBuffer, MTL::ResourceUsageRead );
+First, it makes the argument buffer available to the vertex shader.
+
+```objective-c
+[pEnc setVertexBuffer:_pArgBuffer offset:0 atIndex:0];
 ```
 
-The renderer must call the `useResource()` method because the shader indirectly references these vertex data buffers through the argument buffer. This indicates to Metal that the buffer needs to be present in memory when executing the command buffer.
+The renderer must call the `MTLArgumentEncoder::useResource` method because the shader indirectly references these vertex data buffers through the argument buffer. This indicates to Metal that the buffer needs to be present in memory when executing the command buffer.
 
-The vertex shader accesses the vertex buffers indirectly via the `vertexData` argument buffer.
-
-``` other
-o.position = float4( vertexData->positions[ vertexId ], 1.0 );
-o.color = half3(vertexData->colors[ vertexId ]);
+```objective-c
+[pEnc useResource:_pVertexPositionsBuffer usage:MTLResourceUsageRead];
+[pEnc useResource:_pVertexColorsBuffer usage:MTLResourceUsageRead];
 ```
-
-The shader indexes into these vertex buffers to retrieve a position and color value for each vertex.
 
 ## Sample 3: Animate Rendering
 
@@ -162,7 +143,7 @@ Unlike the vertex data that defines the primitive's vertex positions and colors,
 
 To provide this data, the sample defines the `FrameData` structure that contains a single `float` variable.
 
-``` other
+``` c++
 struct FrameData
 {
     float angle;
