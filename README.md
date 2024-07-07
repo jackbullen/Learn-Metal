@@ -3,10 +3,10 @@
 ## Overview
 
 * 00 - window : Create a Window for Metal Rendering
+* 01 - primitive : Render a Triangle
 
 --- 
 
-* 01 - primitive : Render a Triangle
 * 02 - argbuffers : Store Shader Arguments in a Buffer
 * 03 - animation : Animate Rendering
 * 04 - instancing : Draw Multiple Instance of an Object
@@ -42,7 +42,7 @@ The method also sets an instance of the `MyMTKViewDelegate` class as a delegate.
 
 `MyMTKViewDelegate` is a subclass of the `MTKViewDelegate`, which provides an interface to `MTKView` for event forwarding. By overriding the virtual functions of its parent class, `MyMTKViewDelegate` can respond to these events. `MTKView` calls the `drawInMTKView` method each frame allowing the app to update any rendering.
 
-`drawInMTKView` simply calls the `Renderer` class's `draw()` method.  The `draw()` method performs the minimal work necessary to clear the view's color.
+`drawInMTKView` simply calls the `Renderer` class's `draw` method.  The `draw` method performs the minimal work necessary to clear the view's color.
 
 It performs the following actions:
 
@@ -57,111 +57,31 @@ Metal relies on temporary *autoreleased* objects.
 
 ## Sample 1: Render a Triangle
 
-The `01-Primitive` sample builds on the `Renderer` object created in the previous sample to draw a triangle.
+The `01-Primitive` draws a triangle.
 
-Before issuing a draw command, the renderer must describe the configuration of a *render pipeline*. The renderer uses an `MTL::RenderPipelineState` object to define how the GPU should process the geometry drawn. The render pipeline is also where the sample specifies *vertex* and *fragment* shaders.
+Before issuing a draw command, the renderer must describe the configuration of a *render pipeline*. The renderer uses an `MTLRenderPipelineState` to define how the GPU should process the geometry drawn.
 
-Shaders are small programs that specify the GPU's operation. The vertex shader specifies how the GPU should transform vertices of the triangle, while the fragment shader specifies the final color of the triangle's pixels. The renderer's `buildShaders()` member function builds a `MTL::RenderPipelineState` object from a pair of vertex and fragment shaders stored in the `shaderSrc` string.
+Metal uses MSL (C++ 14 derivative) to specify the vertex and fragment shaders. Typically Xcode would compile these, however, this sample has shader source in string. Renderer creates a `MTLLibrary` with the string.
 
-Metal uses a special-purpose language called the *Metal Shading Language* (MSL) to specify the vertex and fragment shaders. MSL is a derivative of C++ 14 which depends on a number of attribute specifiers to specify how Metal can interpret the language for execution on a GPU. A Metal Xcode project typically has a number of *.metal* source files containing MSL programs. Xcode would compile these *.metal* files along with the rest of the project's source code at build tine. However, for simplicity, this sample directly provides the shader source as a string embedded in the code. Using this string, the renderer creates a `MTL::Library` object.
+This builds an intermediate representation of the shader code. Then the renderer obtains `MTLFunction` objects from the `MTLLibrary` by calling `newFunction` with the shader function names.
 
-``` other
-MTL::Library* pLibrary = _pDevice->newLibrary( NS::String::string(shaderSrc, UTF8StringEncoding), nullptr, &pError );
-if ( !pLibrary )
-{
-    __builtin_printf( "%s", pError->localizedDescription()->utf8String() );
-    assert( false );
-}
+Next, the renderer creates an `MTLRenderPipelineDescriptor` to designate the two shaders the pipeline should use. It also specifies the pixel format used by `MTKView`.
 
-MTL::Function* pVertexFn = pLibrary->newFunction( NS::String::string("vertexMain", UTF8StringEncoding) );
-MTL::Function* pFragFn = pLibrary->newFunction( NS::String::string("fragmentMain", UTF8StringEncoding) );
-```
-
-This builds an intermediate representation of the shader code. Then the renderer obtains `MTL::Function` objects from the `MTL::Library` by calling `newFunction()` with the shader function names.
-
-Next, the renderer creates an `MTL::RenderPipelineDescriptor` object to designate the two shaders the pipeline should use. It also specifies the pixel format used by `MTK::View`.
-
-``` other
-MTL::RenderPipelineDescriptor* pDesc = MTL::RenderPipelineDescriptor::alloc()->init();
-pDesc->setVertexFunction( pVertexFn );
-pDesc->setFragmentFunction( pFragFn );
-pDesc->colorAttachments()->object(0)->setPixelFormat( MTL::PixelFormat::PixelFormatBGRA8Unorm_sRGB );
-```
-
-With the descriptor object, the renderer uses the `MTL::Device` object to create a concrete `MTL::RenderPipelineState` object via the `newRenderPipelineState()` method.
-
-``` other
-_pPSO = _pDevice->newRenderPipelineState( pDesc, &pError );
-if ( !_pPSO )
-{
-    __builtin_printf( "%s", pError->localizedDescription()->utf8String() );
-    assert( false );
-}
-```
+With the descriptor object, the renderer uses the `MTLDevice` object to create a concrete `MTLRenderPipelineState` object via the `newRenderPipelineState` method.
 
 `MTL::RenderPipelineState` objects are expensive to create since Metal must invoke a compiler to convert the shader to GPU machine code. It is a best practice to build a pipeline once, either during application start or at a point where users expect a load operation to occur.
 
-The renderer also specifies a position and color for each vertex of the triangle. It stores this data in Metal *buffer* objects.
+The renderer also specifies a position and color for each vertex of the triangle. It stores this data in `MTLBuffer` objects.
 
 Buffers are unstructured memory allocations accessible by the GPU. An app can interpret buffer data however it likes. In the sample, the renderer uses two buffers to pass vertex data to the vertex shader. The first buffer stores an array of three `sims::float3` vectors, which specify the 3D positions of the vertices. The second buffer also stores an array of three `simd::float3` vectors, which specify RGB color values for each vertex.
 
-``` other
-simd::float3 positions[NumVertices] =
-{
-    { -0.8f,  0.8f, 0.0f },
-    {  0.0f, -0.8f, 0.0f },
-    { +0.8f,  0.8f, 0.0f }
-};
+The renderer creates these buffers using `MTLResourceStorageModeManaged`. This indicates that the CPU and GPU may maintain seperate copies of the data, and any changes must be synchronized (`didModifyRange`).
 
-simd::float3 colors[NumVertices] =
-{
-    {  1.0, 0.3f, 0.2f },
-    {  0.8f, 1.0, 0.0f },
-    {  0.8f, 0.0f, 1.0 }
-};
-```
+Once the renderer creates the render pipeline and buffer objects, it can begin encoding commands to draw the triangle. This sample extends upon the previous sample's `draw` function by explicitly encoding commands to do this.
 
-The renderer creates buffer objects to store each of these arrays.
+After the function creates the render command encoder, it calls the encoder's `setRenderPipelineState` method. It then sets the buffers' containing vertex positions and colors so that Metal passes them as arguments to the vertex shader.
 
-``` other
-const size_t positionsDataSize = NumVertices * sizeof( simd::float3 );
-const size_t colorDataSize = NumVertices * sizeof( simd::float3 );
-
-MTL::Buffer* pVertexPositionsBuffer = _pDevice->newBuffer( positionsDataSize, MTL::ResourceStorageModeManaged );
-MTL::Buffer* pVertexColorsBuffer = _pDevice->newBuffer( colorDataSize, MTL::ResourceStorageModeManaged );
-
-_pVertexPositionsBuffer = pVertexPositionsBuffer;
-_pVertexColorsBuffer = pVertexColorsBuffer;
-```
-
-The renderer creates these buffers using `MTL::ResourceStorageModeManaged`. This indicates that both the CPU and GPU can directly access the contents of the buffer. This allows the renderer to fill the buffers' contents with the arrays by calling `memcpy()`.
-
-``` other
-memcpy( _pVertexPositionsBuffer->contents(), positions, positionsDataSize );
-memcpy( _pVertexColorsBuffer->contents(), colors, colorDataSize );
-
-_pVertexPositionsBuffer->didModifyRange( NS::Range::Make( 0, _pVertexPositionsBuffer->length() ) );
-_pVertexColorsBuffer->didModifyRange( NS::Range::Make( 0, _pVertexColorsBuffer->length() ) );
-```
-
-The renderer indicates to Metal that the CPU has written data to the buffer contents by calling the buffers' `didModifyRange()` method.
-
-Once the renderer creates the render pipeline and buffer objects, it can begin encoding commands to draw the triangle. This sample extends upon the previous sample's `draw()` function by explicitly encoding commands to do this.
-
-``` other
-MTL::RenderCommandEncoder* pEnc = pCmd->renderCommandEncoder( pRpd );
-
-pEnc->setRenderPipelineState( _pPSO );
-pEnc->setVertexBuffer( _pVertexPositionsBuffer, 0, 0 );
-pEnc->setVertexBuffer( _pVertexColorsBuffer, 0, 1 );
-pEnc->drawPrimitives( MTL::PrimitiveType::PrimitiveTypeTriangle, NS::UInteger(0), NS::UInteger(3) );
-
-pEnc->endEncoding();
-```
-
-After the function creates the render command encoder, it calls the encoder's `setRenderPipelineState()` method. It then sets the buffers' containing vertex positions and colors so that Metal passes them as arguments to the vertex shader.
-
-In the vertex shader function, the `positions` and `colors`  parameters use the `[[buffer(0)]]` and `[[buffer(1)]]` attributes. The sample calls `setVertexBuffer()` using the indices declared with these attributes to pass the buffers to these parameters.
+In the vertex shader function, the `positions` and `colors`  parameters use the `[[buffer(0)]]` and `[[buffer(1)]]` attributes. The sample calls `setVertexBuffer` using the indices declared with these attributes to pass the buffers to these parameters.
 
 ``` other
 v2f vertex vertexMain( uint vertexId [[vertex_id]],
@@ -169,7 +89,7 @@ v2f vertex vertexMain( uint vertexId [[vertex_id]],
                        device const float3* colors [[buffer(1)]] )
 ```
 
-Once the `draw()` method sets the vertex buffers, it encodes a draw command with a call to the encoder's `drawPrimitives()` method. The `drawPrimitives()` method draws a triangle using the render pipeline with the three vertices in the set buffers.
+Once the `draw` method sets the vertex buffers, it encodes a draw command with a call to the encoder's `drawPrimitives` method. The `drawPrimitives` method draws a triangle using the render pipeline with the three vertices in the set buffers.
 
 ## Sample 2: Store Shader Arguments in a Buffer
 
