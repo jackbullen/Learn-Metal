@@ -1,7 +1,6 @@
 #import <Metal/Metal.h>
-#include <simd/matrix_types.h>
-#import <AppKit/AppKit.h>
 #import <MetalKit/MetalKit.h>
+#import <AppKit/AppKit.h>
 #import <simd/simd.h>
 
 #define kNumRows 10
@@ -332,65 +331,12 @@ namespace math
 
 -(void)buildShaders
 {
-    NSString* shaderSrc = @"\
-        #include <metal_stdlib> \n\
-        using namespace metal; \n\
-        struct v2f \n\
-        { \n\
-            float4 position [[position]]; \n\
-            float3 normal; \n\
-            half4 color; \n\
-        }; \n\
-        struct VertexData \n\
-        { \n\
-            float3 position; \n\
-            float3 normal; \n\
-        }; \n\
-        struct InstanceData \n\
-        { \n\
-            float4x4 instanceTransform; \n\
-            float3x3 instanceNormalTransform; \n\
-            float4 instanceColor; \n\
-        }; \n\
-        struct CameraData \n\
-        { \n\
-            float4x4 perspectiveTransform; \n\
-            float4x4 worldTransform; \n\
-            float3x3 worldNormalTransform; \n\
-        }; \n\
-        v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]], \n\
-                              device const InstanceData* instanceData [[buffer(1)]], \n\
-                              device const CameraData& cameraData [[buffer(2)]], \n\
-                              uint vertexId [[vertex_id]], \n\
-                              uint instanceId [[instance_id]]) \n\
-        { \n\
-            v2f o; \n\
-            \n\
-            const device VertexData& vd = vertexData[vertexId]; \n\
-            const device InstanceData& id = instanceData[instanceId]; \n\
-            float4 pos = float4(vd.position, 1.0); \n\
-            pos = id.instanceTransform * pos; \n\
-            pos = cameraData.perspectiveTransform * cameraData.worldTransform * pos; \n\
-            o.position = pos; \n\
-            \n\
-            float3 normal = id.instanceNormalTransform * vd.normal; \n\
-            normal = cameraData.worldNormalTransform * normal; \n\
-            o.normal = normal; \n\
-            \n\
-            o.color = half4(id.instanceColor); \n\
-            return o; \n\
-        } \n\
-        \n\
-        \n\
-        half4 fragment fragmentMain(v2f in [[stage_in]]) \n\
-        { \n\
-            float3 light = normalize(float3(1.0, 1.0, 0.8)); \n\
-            float3 normal = normalize(in.normal); \n\
-            return in.color * saturate(dot(light, normal)) * sin(0.1*normal.y * (in.position.x * in.position.y / 100) / in.position.z); \n\
-        } \n\
-    ";
-
     NSError* error = nil;
+
+    NSString* shaderSrc = [NSString stringWithContentsOfFile:@"src/shaders/06-lighting.metal" 
+                                        encoding:NSUTF8StringEncoding 
+                                            error:&error];
+
     _pShaderLibrary = [_pDevice newLibraryWithSource:shaderSrc options:nil error:&error];
     if (!_pShaderLibrary)
     {
