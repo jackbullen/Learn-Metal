@@ -5,12 +5,12 @@
 * 00 - window : Create a Window for Metal Rendering
 * 01 - primitive : Render a Triangle
 * 02 - argbuffers : Store Shader Arguments in a Buffer
-
---- 
-
 * 03 - animation : Animate Rendering
 * 04 - instancing : Draw Multiple Instance of an Object
 * 05 - perspective : Render 3D with Perspective Projection
+
+--- 
+
 * 06 - lighting : Light Geometry
 * 07 - texturing : Texture Triangles
 * 08 - compute : Use the GPU for General Purpose Computation
@@ -218,71 +218,42 @@ The `[[instance_id]]` attribute in MSL contains the value of the instance as pro
 
 ## Sample 5: Render 3D with Perspective Projection
 
-The `05-perspective` sample builds on the previous sample by adding the illusion of depth to rendered objects.
+`05-perspective` adds depth to rendered objects.
 
-Metal does not provide any intrinsic functionality to draw 3D objects. Instead, you create the illusion of the camera seeing the world in 3D by using a perspective transformation matrix.
+3D graphics are made by using a [perspective transformation](https://en.wikipedia.org/wiki/3D_projection#Perspective_projection).
 
-First, the sample creates a structure suitable to pass the perspective and world transformation matrices to the GPU.
+The perspective transformation is defined in the math namespace.
 
-``` other
-struct CameraData
+```c++
+simd::float4x4 makePerspective( float fovRadians, float aspect, float znear, float zfar )
 {
-    simd::float4x4 perspectiveTransform;
-    simd::float4x4 worldTransform;
-};
-```
-
-So far, in previous samples, objects have been two-dimensional. In those samples, draw order is sufficient to establish which pixels are visible when the triangles overlap. However, for 3D objects to look correct, the renderer needs to ensure the pixels closest to the camera are visible, not the pixels drawn most recently. For this, Metal can perform a *depth comparison* operation to place closer pixels on top of those further away.
-
-The renderer specifies how Metal should execute the depth comparison using a `MTL::DepthStencilState` object.
-
-``` other
-void Renderer::buildDepthStencilStates()
-{
-    MTL::DepthStencilDescriptor* pDsDesc = MTL::DepthStencilDescriptor::alloc()->init();
-    pDsDesc->setDepthCompareFunction( MTL::CompareFunction::CompareFunctionLess );
-    pDsDesc->setDepthWriteEnabled( true );
-
-    _pDepthStencilState = _pDevice->newDepthStencilState( pDsDesc );
-
-    pDsDesc->release();
+    using simd::float4;
+    float ys = 1.f / tanf(fovRadians * 0.5f);
+    float xs = ys / aspect;
+    float zs = zfar / ( znear - zfar );
+    return simd_matrix_from_rows((float4){   xs,    0.0f,    0.0f,         0.0f },
+                                 (float4){ 0.0f,      ys,    0.0f,         0.0f },
+                                 (float4){ 0.0f,    0.0f,      zs,   znear * zs },
+                                 (float4){    0,       0,      -1,            0 });
 }
 ```
 
-As the pipeline processes triangles and generates fragments, it uses the `depthCompareFunction` property to determine whether it should discard a fragment based on its distance from the camera. By setting this property to `MTL::CompareFunctionLess`, the renderer signals that Metal should only write the fragment to the view if it's closer to the camera. By enabling `depthWrite`, the pipeline updates the pixel's depth value for future comparisons.
+- `fovRadians` is the field of view angle in radians.
+- `ys` represents the scaling factor for the y-coordinate.
+- `xs` adjusts ys based on the aspect ratio (aspect), ensuring the correct scaling for the x-coordinate.
+- `zs` represents the scaling factor for the z-coordinate.
+- `znear` and `zfar` are the distances to the near and far clipping planes, respectively.
 
-Before rendering each frame, the `draw()` method computes the camera's matrices to apply a perspective projection.
+Two observations to make 
+    1. the only output coordinate that is affected by the inputs fourth coordinate is the third (all 0's in fourth column except in third row). 
+    2. the world-space z value is stored in the outputs fourth coordinate
 
-``` other
-MTL::Buffer* pCameraDataBuffer = _pCameraDataBuffer[ _frame ];
-shader_types::CameraData* pCameraData = reinterpret_cast< shader_types::CameraData *>( pCameraDataBuffer->contents() );
-pCameraData->perspectiveTransform = math::makePerspective( 45.f * M_PI / 180.f, 1.f, 0.03f, 500.0f ) ;
-pCameraData->worldTransform = math::makeIdentity();
-pCameraDataBuffer->didModifyRange( NS::Range::Make( 0, sizeof( shader_types::CameraData ) ) );
-```
+Here is the perspective transformation applied in the shader.
 
-The vertex shader multiplies the 3D vertex positions by these matrices to compute a position to output for each vertex.
-
-``` other
+```c++
+pos = instanceData[instanceId].instanceTransform * pos;
 pos = cameraData.perspectiveTransform * cameraData.worldTransform * pos;
 ```
-
-The `draw()` method sets the depth stencil state and passes the updated camera matrices to the vertex shader.
-
-``` other
-pEnc->setVertexBuffer( _pVertexDataBuffer, /* offset */ 0, /* index */ 0 );
-pEnc->setVertexBuffer( pInstanceDataBuffer, /* offset */ 0, /* index */ 1 );
-pEnc->setVertexBuffer( pCameraDataBuffer, /* offset */ 0, /* index */ 2 );
-```
-
-The `draw()` method also sets the polygon winding order and enables back face culling. This is an important optimization which allows Metal to avoid drawing the interior geometry of 3D objects.
-
-``` other
-pEnc->setCullMode( MTL::CullModeBack );
-pEnc->setFrontFacingWinding( MTL::Winding::WindingCounterClockwise );
-```
-
-Finally, with all the buffers bound and render states set, the renderer calls the `drawIndexedPrimitives()` method.
 
 ## Sample 6: Light Geometry
 
