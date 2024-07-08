@@ -257,11 +257,11 @@ pos = cameraData.perspectiveTransform * cameraData.worldTransform * pos;
 
 ## Sample 6: Light Geometry
 
-The `06-Lighting` sample builds on the previous one to adding the illusion of lighted surface.
+The `06-Lighting` sample builds on the previous one.
 
 The sample declares the `VertexData` structure with an additional vertex attribute, called a *normal*.  The equations to produce lighting effects use this normal attribute to determine the amount of light to apply. Both the host C++ code and GPU MSL code declare this structure so their memory layout match in both languages.
 
-``` other
+```c++
 struct VertexData
 {
     simd::float3 position;
@@ -271,44 +271,24 @@ struct VertexData
 
 The renderer's `buildBuffers()` method uses this `VertexData` structure to define the vertices a cube with the `verts` array.
 
-``` other
+``` c++
 shader_types::VertexData verts[] = {
     //   Positions          Normals
     { { -s, -s, +s }, { 0.f,  0.f,  1.f } },
-    { { +s, -s, +s }, { 0.f,  0.f,  1.f } },
-    { { +s, +s, +s }, { 0.f,  0.f,  1.f } },
-    { { -s, +s, +s }, { 0.f,  0.f,  1.f } },
-
-    { { +s, -s, +s }, { 1.f,  0.f,  0.f } },
-    { { +s, -s, -s }, { 1.f,  0.f,  0.f } },
-    { { +s, +s, -s }, { 1.f,  0.f,  0.f } },
-    { { +s, +s, +s }, { 1.f,  0.f,  0.f } },
-
-    { { +s, -s, -s }, { 0.f,  0.f, -1.f } },
-    { { -s, -s, -s }, { 0.f,  0.f, -1.f } },
-    { { -s, +s, -s }, { 0.f,  0.f, -1.f } },
-    { { +s, +s, -s }, { 0.f,  0.f, -1.f } },
-
-    { { -s, -s, -s }, { -1.f, 0.f,  0.f } },
-    { { -s, -s, +s }, { -1.f, 0.f,  0.f } },
-    { { -s, +s, +s }, { -1.f, 0.f,  0.f } },
-    { { -s, +s, -s }, { -1.f, 0.f,  0.f } },
-
-    { { -s, +s, +s }, { 0.f,  1.f,  0.f } },
-    { { +s, +s, +s }, { 0.f,  1.f,  0.f } },
-    { { +s, +s, -s }, { 0.f,  1.f,  0.f } },
-    { { -s, +s, -s }, { 0.f,  1.f,  0.f } },
-
-    { { -s, -s, -s }, { 0.f, -1.f,  0.f } },
-    { { +s, -s, -s }, { 0.f, -1.f,  0.f } },
-    { { +s, -s, +s }, { 0.f, -1.f,  0.f } },
-    { { -s, -s, +s }, { 0.f, -1.f,  0.f } },
-};
+    ...
+}
 ```
 
-The sample extends the interface between the vertex and the fragment stages in MSL. Metal interpolates the normal attribute across the surface of each triangle, providing each fragment with its own interpolated normal value.
+The sample extends the interface between the vertex and the fragment stages in MSL. There are some [steps](https://en.wikipedia.org/wiki/Graphics_pipeline) between taking the output of the vertex shader and passing it into the fragment shader. These include 
 
-``` other
+- Primitive assembly
+- Viewport transformation
+- Clipping
+- Rasterization
+
+The normal attribute (and all others) are interpolated across the surface of each triangle, providing each fragment with its own interpolated values. 
+
+``` c++
 struct v2f
 {
     float4 position [[position]];
@@ -319,7 +299,7 @@ struct v2f
 
 The fragment shader uses the interpolated normal to calculate the lit color of the fragment using a simple Lambert illumination model.
 
-``` other
+```c++
 half4 fragment fragmentMain( v2f in [[stage_in]] )
 {
     // assume light coming from (front-top-right)

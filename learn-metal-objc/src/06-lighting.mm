@@ -1,26 +1,38 @@
 #import <Metal/Metal.h>
+#include <simd/matrix_types.h>
 #import <AppKit/AppKit.h>
 #import <MetalKit/MetalKit.h>
 #import <simd/simd.h>
 
-#define kNumInstances 32
+#define kNumRows 10
+#define kNumColumns 10
+#define kNumStacks 10
+#define kNumInstances (kNumRows * kNumColumns * kNumStacks)
 static const size_t kMaxFramesInFlight = 3;
 
 namespace math
 {
-    constexpr simd::float3 add( const simd::float3& a, const simd::float3& b );
+    constexpr simd::float3 add(const simd::float3& a, const simd::float3& b);
     constexpr simd_float4x4 makeIdentity();
     simd::float4x4 makePerspective();
-    simd::float4x4 makeXRotate( float angleRadians );
-    simd::float4x4 makeYRotate( float angleRadians );
-    simd::float4x4 makeZRotate( float angleRadians );
-    simd::float4x4 makeTranslate( const simd::float3& v );
-    simd::float4x4 makeScale( const simd::float3& v );
+    simd::float4x4 makeXRotate(float angleRadians);
+    simd::float4x4 makeYRotate(float angleRadians);
+    simd::float4x4 makeZRotate(float angleRadians);
+    simd::float4x4 makeTranslate(const simd::float3& v);
+    simd::float4x4 makeScale(const simd::float3& v);
+    simd::float3x3 chopMat(const simd::float4x4& mat);
 }
+
+struct VertexData
+{
+    simd::float3 position;
+    simd::float3 normal;
+};
 
 struct InstanceData
 {
     simd::float4x4 instanceTransform;
+    simd::float3x3 instanceNormalTransform;
     simd::float4 instanceColor;
 };
 
@@ -28,6 +40,7 @@ struct CameraData
 {
     simd::float4x4 perspectiveTransform;
     simd::float4x4 worldTransform;
+    simd::float3x3 worldNormalTransform;
 };
 
 @interface Renderer: NSObject
@@ -137,7 +150,7 @@ int main(int argc, const char *argv[])
     [_pView setDelegate:_pViewDelegate];
 
     [_pWindow setContentView:_pView];
-    [_pWindow setTitle:@"05 - Perspective"];
+    [_pWindow setTitle:@"06 - Lighting"];
     [_pWindow makeKeyAndOrderFront:nil];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -257,6 +270,11 @@ namespace math
                            (simd::float4){ 0, 0, v.z, 0 },
                            (simd::float4){ 0, 0, 0, 1.0 });
     }
+
+    simd::float3x3 chopMat(const simd::float4x4& mat)
+    {
+        return simd_matrix(mat.columns[0].xyz, mat.columns[1].xyz, mat.columns[2].xyz);
+    }
 }
 
 @interface Renderer()
@@ -320,21 +338,25 @@ namespace math
         struct v2f \n\
         { \n\
             float4 position [[position]]; \n\
-            half3 color; \n\
+            float3 normal; \n\
+            half4 color; \n\
         }; \n\
         struct VertexData \n\
         { \n\
             float3 position; \n\
+            float3 normal; \n\
         }; \n\
         struct InstanceData \n\
         { \n\
             float4x4 instanceTransform; \n\
+            float3x3 instanceNormalTransform; \n\
             float4 instanceColor; \n\
         }; \n\
         struct CameraData \n\
         { \n\
             float4x4 perspectiveTransform; \n\
             float4x4 worldTransform; \n\
+            float3x3 worldNormalTransform; \n\
         }; \n\
         v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]], \n\
                               device const InstanceData* instanceData [[buffer(1)]], \n\
@@ -343,16 +365,28 @@ namespace math
                               uint instanceId [[instance_id]]) \n\
         { \n\
             v2f o; \n\
-            float4 pos = float4(vertexData[vertexId].position, 1.0); \n\
-            pos = instanceData[instanceId].instanceTransform * pos; \n\
+            \n\
+            const device VertexData& vd = vertexData[vertexId]; \n\
+            const device InstanceData& id = instanceData[instanceId]; \n\
+            float4 pos = float4(vd.position, 1.0); \n\
+            pos = id.instanceTransform * pos; \n\
             pos = cameraData.perspectiveTransform * cameraData.worldTransform * pos; \n\
             o.position = pos; \n\
-            o.color = half3(instanceData[instanceId].instanceColor.rgb); \n\
+            \n\
+            float3 normal = id.instanceNormalTransform * vd.normal; \n\
+            normal = cameraData.worldNormalTransform * normal; \n\
+            o.normal = normal; \n\
+            \n\
+            o.color = half4(id.instanceColor); \n\
             return o; \n\
         } \n\
+        \n\
+        \n\
         half4 fragment fragmentMain(v2f in [[stage_in]]) \n\
         { \n\
-            return half4(in.color, 1.0); \n\
+            float3 light = normalize(float3(1.0, 1.0, 0.8)); \n\
+            float3 normal = normalize(in.normal); \n\
+            return in.color * saturate(dot(light, normal)) * sin(0.1*normal.y * (in.position.x * in.position.y / 100) / in.position.z); \n\
         } \n\
     ";
 
@@ -406,36 +440,46 @@ namespace math
 {
     const float s = 0.5f;
 
-    simd::float3 vertices[] = {
-        { -s, -s, +s },
-        { +s, -s, +s },
-        { +s, +s, +s },
-        { -s, +s, +s },
+    VertexData vertices[] = {
+        //     Position                  Normal
+        { { -s, -s, +s }, { 0.f,  0.f,  1.f } },
+        { { +s, -s, +s }, { 0.f,  0.f,  1.f } },
+        { { +s, +s, +s }, { 0.f,  0.f,  1.f } },
+        { { -s, +s, +s }, { 0.f,  0.f,  1.f } },
 
-        { -s, -s, -s },
-        { -s, +s, -s },
-        { +s, +s, -s },
-        { +s, -s, -s }
+        { { +s, -s, +s }, { 1.f,  0.f,  0.f } },
+        { { +s, -s, -s }, { 1.f,  0.f,  0.f } },
+        { { +s, +s, -s }, { 1.f,  0.f,  0.f } },
+        { { +s, +s, +s }, { 1.f,  0.f,  0.f } },
+
+        { { +s, -s, -s }, { 0.f,  0.f, -1.f } },
+        { { -s, -s, -s }, { 0.f,  0.f, -1.f } },
+        { { -s, +s, -s }, { 0.f,  0.f, -1.f } },
+        { { +s, +s, -s }, { 0.f,  0.f, -1.f } },
+
+        { { -s, -s, -s }, { -1.f, 0.f,  0.f } },
+        { { -s, -s, +s }, { -1.f, 0.f,  0.f } },
+        { { -s, +s, +s }, { -1.f, 0.f,  0.f } },
+        { { -s, +s, -s }, { -1.f, 0.f,  0.f } },
+
+        { { -s, +s, +s }, { 0.f,  1.f,  0.f } },
+        { { +s, +s, +s }, { 0.f,  1.f,  0.f } },
+        { { +s, +s, -s }, { 0.f,  1.f,  0.f } },
+        { { -s, +s, -s }, { 0.f,  1.f,  0.f } },
+
+        { { -s, -s, -s }, { 0.f, -1.f,  0.f } },
+        { { +s, -s, -s }, { 0.f, -1.f,  0.f } },
+        { { +s, -s, +s }, { 0.f, -1.f,  0.f } },
+        { { -s, -s, +s }, { 0.f, -1.f,  0.f } }
     };
 
     uint16_t indices[] = {
-        0, 1, 2, /* front */
-        2, 3, 0,
-
-        1, 7, 6, /* right */
-        6, 2, 1,
-
-        7, 4, 5, /* back */
-        5, 6, 7,
-
-        4, 0, 3, /* left */
-        3, 5, 4,
-
-        3, 2, 6, /* top */
-        6, 5, 3,
-
-        4, 7, 1, /* bottom */
-        1, 0, 4
+         0,  1,  2,  2,  3,  0, /* front */
+         4,  5,  6,  6,  7,  4, /* right */
+         8,  9, 10, 10, 11,  8, /* back */
+        12, 13, 14, 14, 15, 12, /* left */
+        16, 17, 18, 18, 19, 16, /* top */
+        20, 21, 22, 22, 23, 20, /* bottom */
     };
 
     const size_t verticesDataSize = sizeof(vertices);
@@ -447,7 +491,7 @@ namespace math
     _pIndexBuffer = [_pDevice newBufferWithBytes:indices length:indicesDataSize options:MTLResourceStorageModeManaged];
     [_pIndexBuffer didModifyRange:NSMakeRange(0, _pIndexBuffer.length)];
 
-    const size_t instanceDataSize = kNumInstances * sizeof( InstanceData );
+    const size_t instanceDataSize = kNumInstances * sizeof(InstanceData);
     for (int i = 0; i < kMaxFramesInFlight; i++)
     {
         _pInstanceDataBuffer[i] = [_pDevice newBufferWithLength:instanceDataSize options:MTLResourceStorageModeManaged];
@@ -470,31 +514,56 @@ namespace math
         id<MTLBuffer> pInstanceDataBuffer = _pInstanceDataBuffer[_frame];
         InstanceData* pInstanceData = reinterpret_cast< InstanceData *>( pInstanceDataBuffer.contents );
 
-        _angle += 0.01f;
+        _angle += 0.001f;
 
-        const float scl = 0.1f;
+        const float scl = .15f;
+
         simd::float3 objectPosition = {0.f, 0.f, -5.f};
-        simd::float4x4 rt = math::makeTranslate(objectPosition);
         simd::float4x4 rr = math::makeYRotate(_angle);
-        simd::float4x4 objectRot = rt * rr;
-        
+        simd::float4x4 ry = math::makeXRotate(_angle);
+        simd::float4x4 objectRot = rr * ry;
+        simd::float4x4 objectTranslate = math::makeTranslate({objectPosition.x, objectPosition.y, objectPosition.z});
+        simd::float4x4 objectTransform = objectTranslate * objectRot;
+
+        size_t ix = 0, iy = 0, iz = 0;
         for ( size_t i = 0; i < kNumInstances; ++i )
         {
-            float iDivNumInstances = i / (float)kNumInstances;
-            float xoff = (iDivNumInstances * 2.0f - 1.0f) + (1.f/kNumInstances);
-            float yoff = sin(( iDivNumInstances + _angle ) * 2.0f * M_PI);
+            if (ix == kNumRows) 
+            { // go to next column
+                ix = 0;
+                iy += 1;
+            }
+            if (iy == kNumRows)
+            { // go to next stack
+                iy = 0;
+                iz += 1;
+            }
 
+            float x = ((float)ix - (float)kNumRows/2.f) * (2.f * scl) + scl;
+            float y = ((float)iy - (float)kNumColumns/2.f) * (2.f * scl) + scl;
+            float z = ((float)iz - (float)kNumStacks/2.f) * (2. * scl);
+            simd::float3 instancePosition = {x, y, z};
+            simd::float4x4 instanceTranslate = math::makeTranslate(instancePosition);
             simd::float4x4 scale = math::makeScale((simd::float3){scl, scl, scl});
-            simd::float4x4 transformInstance = math::makeTranslate((simd::float3){xoff, yoff, 0.f}) * scale;
+            simd::float4x4 zrot = math::makeZRotate(10*_angle * sinf((float)ix));
+            simd::float4x4 yrot = math::makeYRotate(_angle * cosf((float)iy));
+            simd::float4x4 instanceRot = yrot * zrot;
+            simd::float4x4 instanceTransform = instanceTranslate * instanceRot;
 
-            // transform instances then object rotation. results in all instances rotating around a common angle, 
-            // rather than having the rotation be local to each instance.
-            pInstanceData[i].instanceTransform = objectRot * transformInstance;
+            // i would like to rename instanceTransform on the InstanceData struct
+            // here i am calling instanceTransform the transformation that is happening to each local instance
+            //                 which consists of its rotation and then moving to its correct location
+            // then objectTransform is the transform on the object made up of all instances
+            pInstanceData[i].instanceTransform = objectTransform * instanceTransform * scale;
+            pInstanceData[i].instanceNormalTransform = math::chopMat(pInstanceData[i].instanceTransform);
 
+            float iDivNumInstances = i / (float)kNumInstances;
             float r = iDivNumInstances;
             float g = 1.0f - r;
             float b = sinf(M_PI * 2.0f * iDivNumInstances);
             pInstanceData[i].instanceColor = (simd::float4){ r, g, b, 1.0f };
+
+            ix++;
         }
         [pInstanceDataBuffer didModifyRange:NSMakeRange(0, pInstanceDataBuffer.length)];
 
@@ -502,6 +571,7 @@ namespace math
         CameraData* pCameraData = reinterpret_cast<CameraData*>(pCameraDataBuffer.contents);
         pCameraData->perspectiveTransform = math::makePerspective(45.f * M_PI / 180.f, 1.f, 0.03f, 500.0f);
         pCameraData->worldTransform = math::makeIdentity();
+        pCameraData->worldNormalTransform = math::chopMat(math::makeIdentity());
         [pCameraDataBuffer didModifyRange:NSMakeRange(0, pCameraDataBuffer.length)];
 
         // Send commands
