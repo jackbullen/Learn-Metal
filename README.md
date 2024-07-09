@@ -422,34 +422,39 @@ return half4(illumination, in.color.a);
 
 ## Sample 8: Use the GPU for General Purpose Computation
 
-The `08-compute` sample builds on the previous samples by leveraging the high bandwidth processing power offered by GPUs for general purpose computation. It uses a *compute* pipeline to generate the texture image on the GPU itself rather than creating it on the CPU.
+`08-compute` leverages the high bandwidth processing power offered by GPUs for general purpose computation. It uses a *compute* pipeline to generate the texture image on the GPU itself rather than creating it on the CPU.
 
 To generate the texture on the GPU, the sample adds a `kernel` function written in MSL. This compute kernel accepts a texture with `access::write` as a parameter and calculates a color value to write to the texture. The `index` parameter is a 2D vector that the identifies the thread executed by the GPU. This kernel kernel uses `index` to determine x and y coordinate of the texel to write data to. The `gridSize` specifies the total size of the workload.
 
-``` other
+```c++
 kernel void mandelbrot_set(texture2d< half, access::write > tex [[texture(0)]],
                            uint2 index [[thread_position_in_grid]],
                            uint2 gridSize [[threads_per_grid]])
 ```
 
-Unlike fragment shaders, compute kernels do not output their results to render attachments. Instead, they can directly output texel data with the texture's `write()` method.
+Unlike fragment shaders, compute kernels do not output their results to render attachments. Instead, they can directly output texel data with the texture's `write` method.
 
-``` other
+```c++
 tex.write(half4(color, color, color, 1.0), index, 0);
 ```
 
 The renderer uses the kernel to create a compute pipeline.
 
-``` other
+```c++
 MTL::Function* pMandelbrotFn = pComputeLibrary->newFunction( NS::String::string("mandelbrot_set", NS::UTF8StringEncoding) );
 _pComputePSO = _pDevice->newComputePipelineState( pMandelbrotFn, &pError );
 ```
 
+```objective-c
+id<MTLFunction> pMandelbrot = [pComputeLibrary newFunctionWithName:@"mandelbrot"];
+_pComputePSO = [_pDevice newComputePipelineStateWithFunction:pMandelbrot error:&error];
+```
+
 Compute pipelines are more simple to build than render pipelines; they only contain a single function and do not need other state set before building them. Note that just like render pipelines, compute pipelines are expensive to create. The best practice is to create them once and reuse them.
 
-In the previous sample, the `buildTextures()` method generates image data using the CPU and fills the texture's memory with the `replaceRegion()` method. In this sample, the renderer calls the `generateMandelbrotTexture()` method, which uses the GPU to fill the texture's memory. The  `generateMandelbrotTexture()` method creates a `MTL::ComputeCommandEncoder`. With this encoder, it sets the compute pipeline, specifies the texture to pass to the kernel, and, finally, executes the kernel with the `dispatchThreads()` method.
+In the previous sample, the `buildTextures` method generates image data using the CPU and fills the texture's memory with the `replaceRegion` method. In this sample, `mandelbrot` is used by the GPU to fill the texture's memory. The  `generateMandelbrotTexture` method creates an `MTLComputeCommandEncoder`. With this encoder, it sets the compute pipeline, specifies the texture to pass to the kernel, and executes the kernel with the `dispatchThreads` method.
 
-``` other
+```c++
 MTL::ComputeCommandEncoder* pComputeEncoder = pCommandBuffer->computeCommandEncoder();
 
 pComputeEncoder->setComputePipelineState( _pComputePSO );
@@ -465,7 +470,23 @@ pComputeEncoder->dispatchThreads( gridSize, threadgroupSize );
 pComputeEncoder->endEncoding();
 ```
 
-To execute a kernel, the renderer explicitly specifies the size of the workload. It specifies this workload with a `MTL::Size` structure using the texture's width and height for the dimensions. The renderer passes this size as an argument to the `dispatchThreads()` function. The renderer also uses the the value returned by the compute pipeline's `maxTotalThreadsPerThreadgroup()` method to indicate a threadgroup size.
+```objective-c
+id<MTLComputeCommandEncoder> pComputeEncoder = [pCommandBuffer computeCommandEncoder];
+
+[pComputeEncoder setComputePipelineState:_pComputePSO];
+[pComputeEncoder setTexture:_pTexture atIndex:0];
+
+MTLSize gridSize = MTLSizeMake(kTextureWidth, kTextureHeight, 1);
+
+NSUInteger threadGroupSize = [_pComputePSO maxTotalThreadsPerThreadgroup];
+MTLSize threadgroupSize = MTLSizeMake(threadGroupSize, 1, 1);
+
+[pComputeEncoder dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
+
+[pComputeEncoder endEncoding];
+```
+
+To execute a kernel, the renderer explicitly specifies the size of the workload. It specifies this workload with a `MTLSize` structure using the texture's width and height for the dimensions. The renderer passes this size as an argument to the `dispatchThreads` function. The renderer also uses the the value returned by the compute pipeline's `maxTotalThreadsPerThreadgroup` method to indicate a threadgroup size.
 
 Once executed, the compute kernel fills the texture with a Mandelbrot set image. Metal applies this texture to the face of each cube just as it applied the checkerboard texture in the previous sample.
 
