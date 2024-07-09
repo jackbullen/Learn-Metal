@@ -161,13 +161,13 @@ The renderer uses a *semaphore* to explicitly synchronize buffer updates. This e
 
 Upon initialization, the renderer creates the semaphore with a value of `kMaxFramesInFlight = 3`.
 
-```c
+```objective-c
 _semaphore = dispatch_semaphore_create( kMaxFramesInFlight );
 ```
 
 At the beginning of each frame, the renderer calls `dispatch_semaphore_wait`. This forces to CPU to wait if the GPU has not finished reading from the current _frame buffer in the the cycle.
 
-```c
+```objective-c
 dispatch_semaphore_wait( _semaphore, DISPATCH_TIME_FOREVER );
 ```
 
@@ -313,7 +313,7 @@ half4 fragment fragmentMain( v2f in [[stage_in]] )
 
 ## Sample 7: Texture Surfaces
 
-The `07-texturing` sample adds the ability to apply a texture (i.e. an image) onto the face of the rendered cubes.
+`07-texturing` adds a texture (image) onto the face of the rendered cubes.
 
 In order to draw a texture, the code needs 3 things: 
 
@@ -321,35 +321,38 @@ In order to draw a texture, the code needs 3 things:
 2. Data showing Metal how to place the image upon each triangle 
 3. Operations to apply the image to the rendered pixels
 
-To create the image and make it available to the GPU, the sample introduces the `buildTextures()` function.
+To create the image and make it available to the GPU, the sample introduces the `buildTextures` function.
 
-To create a texture in Metal, use the `MTL::TextureDescriptor` class. The descriptor provides information about the texture to create such as `width` and `height` of the image, its `pixelFormat`, `textureType`, `storageMode`, and `usage`. The renderer creates a texture from the `MTL::Device` object using this descriptor.
+To create a texture in Metal, use the `MTLTextureDescriptor` class. The descriptor provides information about the texture to create such as `width` and `height` of the image, its `pixelFormat`, `textureType`, `storageMode`, and `usage`. The renderer creates a texture from the `MTLDevice` object using this descriptor.
 
-``` other
-MTL::TextureDescriptor* pTextureDesc = MTL::TextureDescriptor::alloc()->init();
-pTextureDesc->setWidth( tw );
-pTextureDesc->setHeight( th );
-pTextureDesc->setPixelFormat( MTL::PixelFormatRGBA8Unorm );
-pTextureDesc->setTextureType( MTL::TextureType2D );
-pTextureDesc->setStorageMode( MTL::StorageModeManaged );
-pTextureDesc->setUsage( MTL::ResourceUsageSample | MTL::ResourceUsageRead );
+```objective-c
+MTLTextureDescriptor* pTextureDesc = [[MTLTextureDescriptor alloc] init];
+[pTextureDesc setWidth:tw];
+[pTextureDesc setHeight:th];
+[pTextureDesc setPixelFormat:MTLPixelFormatBGRA8Unorm];
+[pTextureDesc setTextureType:MTLTextureType2D];
+[pTextureDesc setStorageMode:MTLStorageModeManaged];
+[pTextureDesc setUsage:MTLResourceUsageSample|MTLResourceUsageRead];
 
-MTL::Texture *pTexture = _pDevice->newTexture( pTextureDesc );
-_pTexture = pTexture;
+_pTexture = [_pDevice newTextureWithDescriptor:pTextureDesc];
 ```
 
 This creates the object and allocates memory for the image. The renderer must still fill the memory with image data.
 
 Typically, an application will fill the texture’s memory with data from an image file. Metal doesn't provide an API to load image data from files so apps must use custom code or an API which handles images such MetalKit or Image I/O. Instead of relying on such an API, this sample implements a simple algorithm to generate a checkerboard pattern. It allocates a temporary system memory buffer using `alloca` and then generates the image.
 
-``` other
+```c
 uint8_t* pTextureData = (uint8_t *)alloca( tw * th * 4 );
 ```
 
-Once the renderer has filled the temporary allocation, it copies the data to the texture object using the `replaceRegion()` method.
+Once the renderer has filled the temporary allocation, it copies the data to the texture object using the `replaceRegion` method.
 
-``` other
+```c++
 _pTexture->replaceRegion( MTL::Region( 0, 0, 0, tw, th, 1 ), 0, pTextureData, tw * 4 );
+```
+
+```objective-c
+[_pTexture replaceRegion:MTLRegionMake3D(0, 0, 0, tw, th, 1) mipmapLevel:0 withBytes:pTextureData bytesPerRow:tw*4];
 ```
 
 Just like pipeline objects, textures are expensive to create. Create them once and reuse them as much as possible.
@@ -358,7 +361,7 @@ Once the renderer creates the texture, it must establish how Metal should place 
 
 The sample extends the `VertexData` structure to include a texture coordinate alongside vertex positions and normals.
 
-``` other
+```c++
 struct VertexData
 {
     simd::float3 position;
@@ -367,55 +370,27 @@ struct VertexData
 };
 ```
 
-The `buildBuffers()` method specifies a texture coordinate for each vertex in the array.
+The `buildBuffers` method specifies a texture coordinate for each vertex in the array.
 
-``` other
+```c++
 shader_types::VertexData verts[] = {
-    //                                         Texture
     //   Positions           Normals         Coordinates
     { { -s, -s, +s }, {  0.f,  0.f,  1.f }, { 0.f, 1.f } },
-    { { +s, -s, +s }, {  0.f,  0.f,  1.f }, { 1.f, 1.f } },
-    { { +s, +s, +s }, {  0.f,  0.f,  1.f }, { 1.f, 0.f } },
-    { { -s, +s, +s }, {  0.f,  0.f,  1.f }, { 0.f, 0.f } },
-
-    { { +s, -s, +s }, {  1.f,  0.f,  0.f }, { 0.f, 1.f } },
-    { { +s, -s, -s }, {  1.f,  0.f,  0.f }, { 1.f, 1.f } },
-    { { +s, +s, -s }, {  1.f,  0.f,  0.f }, { 1.f, 0.f } },
-    { { +s, +s, +s }, {  1.f,  0.f,  0.f }, { 0.f, 0.f } },
-
-    { { +s, -s, -s }, {  0.f,  0.f, -1.f }, { 0.f, 1.f } },
-    { { -s, -s, -s }, {  0.f,  0.f, -1.f }, { 1.f, 1.f } },
-    { { -s, +s, -s }, {  0.f,  0.f, -1.f }, { 1.f, 0.f } },
-    { { +s, +s, -s }, {  0.f,  0.f, -1.f }, { 0.f, 0.f } },
-
-    { { -s, -s, -s }, { -1.f,  0.f,  0.f }, { 0.f, 1.f } },
-    { { -s, -s, +s }, { -1.f,  0.f,  0.f }, { 1.f, 1.f } },
-    { { -s, +s, +s }, { -1.f,  0.f,  0.f }, { 1.f, 0.f } },
-    { { -s, +s, -s }, { -1.f,  0.f,  0.f }, { 0.f, 0.f } },
-
-    { { -s, +s, +s }, {  0.f,  1.f,  0.f }, { 0.f, 1.f } },
-    { { +s, +s, +s }, {  0.f,  1.f,  0.f }, { 1.f, 1.f } },
-    { { +s, +s, -s }, {  0.f,  1.f,  0.f }, { 1.f, 0.f } },
-    { { -s, +s, -s }, {  0.f,  1.f,  0.f }, { 0.f, 0.f } },
-
-    { { -s, -s, -s }, {  0.f, -1.f,  0.f }, { 0.f, 1.f } },
-    { { +s, -s, -s }, {  0.f, -1.f,  0.f }, { 1.f, 1.f } },
-    { { +s, -s, +s }, {  0.f, -1.f,  0.f }, { 1.f, 0.f } },
-    { { -s, -s, +s }, {  0.f, -1.f,  0.f }, { 0.f, 0.f } }
+    ...
 };
 ```
 
-In the `draw()` function, the renderer sets the texture using the encoder, making the image available to the fragment shader.
+In the `draw` function, the renderer sets the texture using the encoder, making the image available to the fragment shader.
 
-``` other
-pEnc->setFragmentTexture( _pTexture, /* index */ 0 );
+```objective-c
+[pEnc setFragmentTexture:_pTexture atIndex:0];
 ```
 
 The sample also makes a few changes to the shaders.
 
 First, the shader's `v2f` structure includes a texture coordinate to interpolate when passed from the vertex shader to the fragment shader.
 
-``` other
+```c++
 struct v2f
 {
     float4 position [[position]];
@@ -427,18 +402,23 @@ struct v2f
 
 Second, the fragment shader adds a parameter for the texture object.
 
-``` other
+```c++
 half4 fragment fragmentMain( v2f in [[stage_in]], texture2d< half, access::sample > tex [[texture(0)]] )
 ```
 
 Finally, the fragment shader uses the interpolated texture coordinate to *sample* from the texture.
 
-``` other
+```c++
 constexpr sampler s( address::repeat, filter::linear );
 half3 texel = tex.sample( s, in.texcoord ).rgb;
 ```
 
 This retrieves the texture data and passes it into the `texel` variable. The fragment shader mixes the `texel` color value with the result of the lighting calculations and outputs a final color.
+
+```c++
+half3 illumination = in.color.rgb * texel * saturate(dot(lightDirection, normal));
+return half4(illumination, in.color.a); 
+```
 
 ## Sample 8: Use the GPU for General Purpose Computation
 

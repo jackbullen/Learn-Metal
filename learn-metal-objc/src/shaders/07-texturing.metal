@@ -5,13 +5,15 @@ struct v2f
 { 
     float4 position [[position]]; 
     float3 normal; 
-    half4 color; 
+    half4 color;
+    float2 texcoord; 
 }; 
 
 struct VertexData 
 { 
     float3 position; 
     float3 normal; 
+    float2 texcoord;
 }; 
 
 struct InstanceData 
@@ -46,14 +48,22 @@ v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]],
     float3 normal = id.instanceNormalTransform * vd.normal; 
     normal = cameraData.worldNormalTransform * normal; 
     o.normal = normal; 
-    
+
+    o.texcoord = vd.texcoord;
+
     o.color = half4(id.instanceColor); 
     return o; 
 } 
 
-half4 fragment fragmentMain(v2f in [[stage_in]]) 
+half4 fragment fragmentMain(v2f in [[stage_in]],
+                            texture2d<half, access::sample> tex [[texture(0)]]) 
 { 
+    constexpr sampler s(address::repeat, filter::linear);
+    half3 texel = tex.sample(s, in.texcoord).rgb;
+
     float3 lightD = normalize(float3(1.0, 1.0, 0.8)); 
     float3 normal = normalize(in.normal); 
-    return in.color * saturate(dot(lightD, normal)); 
+
+    half3 illumin = in.color.rgb * texel * saturate(dot(lightD, normal));
+    return half4(illumin, in.color.a); 
 } 

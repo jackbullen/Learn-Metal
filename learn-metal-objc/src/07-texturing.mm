@@ -26,6 +26,7 @@ struct VertexData
 {
     simd::float3 position;
     simd::float3 normal;
+    simd::float2 texcoord;
 };
 
 struct InstanceData
@@ -46,6 +47,7 @@ struct CameraData
 - (instancetype)initWithDevice:(id<MTLDevice>)device;
 - (void)buildShaders;
 - (void)buildDepthStencilStates;
+- (void)buildTextures;
 - (void)buildBuffers;
 - (void)draw:(MTKView *)view;
 @end
@@ -149,7 +151,7 @@ int main(int argc, const char *argv[])
     [_pView setDelegate:_pViewDelegate];
 
     [_pWindow setContentView:_pView];
-    [_pWindow setTitle:@"06 - Lighting"];
+    [_pWindow setTitle:@"07 - Texture Mapping"];
     [_pWindow makeKeyAndOrderFront:nil];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -283,6 +285,7 @@ namespace math
     id<MTLLibrary> _pShaderLibrary;
     id<MTLRenderPipelineState> _pPSO;
     id<MTLDepthStencilState> _pDepthStencilState;
+    id<MTLTexture> _pTexture;
     id<MTLBuffer> _pVertexDataBuffer;
     id<MTLBuffer> _pInstanceDataBuffer[kMaxFramesInFlight];
     id<MTLBuffer> _pCameraDataBuffer[kMaxFramesInFlight];
@@ -303,8 +306,9 @@ namespace math
         _pDevice = device;
         _pCommandQueue = [_pDevice newCommandQueue];
         [self buildShaders];
-        [self buildBuffers];
         [self buildDepthStencilStates];
+        [self buildTextures];
+        [self buildBuffers];
         _semaphore = dispatch_semaphore_create(kMaxFramesInFlight);
     }
     return self;
@@ -326,6 +330,7 @@ namespace math
     }
     _pShaderLibrary = nil;
     _pDepthStencilState = nil;
+    _pTexture = nil;
     [super dealloc];
 }
 
@@ -333,7 +338,7 @@ namespace math
 {
     NSError* error = nil;
 
-    NSString* shaderSrc = [NSString stringWithContentsOfFile:@"src/shaders/06-lighting.metal" 
+    NSString* shaderSrc = [NSString stringWithContentsOfFile:@"src/shaders/07-texturing.metal" 
                                         encoding:NSUTF8StringEncoding 
                                             error:&error];
 
@@ -382,41 +387,79 @@ namespace math
     pDsDesc = nil;
 }
 
+- (void)buildTextures
+{
+    const uint32_t tw = 128;
+    const uint32_t th = 128;
+
+    MTLTextureDescriptor* pTextureDesc = [[MTLTextureDescriptor alloc] init];
+    [pTextureDesc setWidth:tw];
+    [pTextureDesc setHeight:th];
+    [pTextureDesc setPixelFormat:MTLPixelFormatBGRA8Unorm];
+    [pTextureDesc setTextureType:MTLTextureType2D];
+    [pTextureDesc setStorageMode:MTLStorageModeManaged];
+    [pTextureDesc setUsage:MTLResourceUsageSample|MTLResourceUsageRead];
+
+    _pTexture = [_pDevice newTextureWithDescriptor:pTextureDesc];
+
+    uint8_t* pTextureData = (uint8_t*)alloca(tw*th*4);
+    for (size_t y = 0; y < th; y++)
+    {
+        for (size_t x = 0; x < tw; x++)
+        {
+        bool isWhite = (x^y) & 0b1000000;
+        uint8_t c = isWhite ? 0xFF : 0xA;
+
+        size_t i = (y * tw) + x;
+
+        pTextureData[i*4 + 0] = c;
+        pTextureData[i*4 + 1] = c;
+        pTextureData[i*4 + 2] = c;
+        pTextureData[i*4 + 3] = 0xFF;
+        }
+    }
+
+    [_pTexture replaceRegion:MTLRegionMake3D(0, 0, 0, tw, th, 1) mipmapLevel:0 withBytes:pTextureData bytesPerRow:tw*4];
+
+    pTextureDesc = nil;
+}
+
 - (void)buildBuffers
 {
     const float s = 0.5f;
 
     VertexData vertices[] = {
-        //     Position                  Normal
-        { { -s, -s, +s }, { 0.f,  0.f,  1.f } },
-        { { +s, -s, +s }, { 0.f,  0.f,  1.f } },
-        { { +s, +s, +s }, { 0.f,  0.f,  1.f } },
-        { { -s, +s, +s }, { 0.f,  0.f,  1.f } },
+        //                                         Texture
+        //   Positions           Normals         Coordinates
+        { { -s, -s, +s }, {  0.f,  0.f,  1.f }, { 0.f, 1.f } },
+        { { +s, -s, +s }, {  0.f,  0.f,  1.f }, { 1.f, 1.f } },
+        { { +s, +s, +s }, {  0.f,  0.f,  1.f }, { 1.f, 0.f } },
+        { { -s, +s, +s }, {  0.f,  0.f,  1.f }, { 0.f, 0.f } },
 
-        { { +s, -s, +s }, { 1.f,  0.f,  0.f } },
-        { { +s, -s, -s }, { 1.f,  0.f,  0.f } },
-        { { +s, +s, -s }, { 1.f,  0.f,  0.f } },
-        { { +s, +s, +s }, { 1.f,  0.f,  0.f } },
+        { { +s, -s, +s }, {  1.f,  0.f,  0.f }, { 0.f, 1.f } },
+        { { +s, -s, -s }, {  1.f,  0.f,  0.f }, { 1.f, 1.f } },
+        { { +s, +s, -s }, {  1.f,  0.f,  0.f }, { 1.f, 0.f } },
+        { { +s, +s, +s }, {  1.f,  0.f,  0.f }, { 0.f, 0.f } },
 
-        { { +s, -s, -s }, { 0.f,  0.f, -1.f } },
-        { { -s, -s, -s }, { 0.f,  0.f, -1.f } },
-        { { -s, +s, -s }, { 0.f,  0.f, -1.f } },
-        { { +s, +s, -s }, { 0.f,  0.f, -1.f } },
+        { { +s, -s, -s }, {  0.f,  0.f, -1.f }, { 0.f, 1.f } },
+        { { -s, -s, -s }, {  0.f,  0.f, -1.f }, { 1.f, 1.f } },
+        { { -s, +s, -s }, {  0.f,  0.f, -1.f }, { 1.f, 0.f } },
+        { { +s, +s, -s }, {  0.f,  0.f, -1.f }, { 0.f, 0.f } },
 
-        { { -s, -s, -s }, { -1.f, 0.f,  0.f } },
-        { { -s, -s, +s }, { -1.f, 0.f,  0.f } },
-        { { -s, +s, +s }, { -1.f, 0.f,  0.f } },
-        { { -s, +s, -s }, { -1.f, 0.f,  0.f } },
+        { { -s, -s, -s }, { -1.f,  0.f,  0.f }, { 0.f, 1.f } },
+        { { -s, -s, +s }, { -1.f,  0.f,  0.f }, { 1.f, 1.f } },
+        { { -s, +s, +s }, { -1.f,  0.f,  0.f }, { 1.f, 0.f } },
+        { { -s, +s, -s }, { -1.f,  0.f,  0.f }, { 0.f, 0.f } },
 
-        { { -s, +s, +s }, { 0.f,  1.f,  0.f } },
-        { { +s, +s, +s }, { 0.f,  1.f,  0.f } },
-        { { +s, +s, -s }, { 0.f,  1.f,  0.f } },
-        { { -s, +s, -s }, { 0.f,  1.f,  0.f } },
+        { { -s, +s, +s }, {  0.f,  1.f,  0.f }, { 0.f, 1.f } },
+        { { +s, +s, +s }, {  0.f,  1.f,  0.f }, { 1.f, 1.f } },
+        { { +s, +s, -s }, {  0.f,  1.f,  0.f }, { 1.f, 0.f } },
+        { { -s, +s, -s }, {  0.f,  1.f,  0.f }, { 0.f, 0.f } },
 
-        { { -s, -s, -s }, { 0.f, -1.f,  0.f } },
-        { { +s, -s, -s }, { 0.f, -1.f,  0.f } },
-        { { +s, -s, +s }, { 0.f, -1.f,  0.f } },
-        { { -s, -s, +s }, { 0.f, -1.f,  0.f } }
+        { { -s, -s, -s }, {  0.f, -1.f,  0.f }, { 0.f, 1.f } },
+        { { +s, -s, -s }, {  0.f, -1.f,  0.f }, { 1.f, 1.f } },
+        { { +s, -s, +s }, {  0.f, -1.f,  0.f }, { 1.f, 0.f } },
+        { { -s, -s, +s }, {  0.f, -1.f,  0.f }, { 0.f, 0.f } }
     };
 
     uint16_t indices[] = {
@@ -533,6 +576,7 @@ namespace math
 
         [pEnc setRenderPipelineState:_pPSO];
         [pEnc setDepthStencilState:_pDepthStencilState];
+        [pEnc setFragmentTexture:_pTexture atIndex:0];
         [pEnc setCullMode:MTLCullModeBack];
         [pEnc setFrontFacingWinding:MTLWindingCounterClockwise];
 
