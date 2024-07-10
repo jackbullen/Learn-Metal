@@ -146,7 +146,6 @@ void MyAppDelegate::applicationWillFinishLaunching( NS::Notification* pNotificat
     NS::Menu* pMenu = createMenuBar();
     NS::Application* pApp = reinterpret_cast< NS::Application* >( pNotification->object() );
     pApp->setMainMenu( pMenu );
-    pApp->setActivationPolicy( NS::ActivationPolicy::ActivationPolicyRegular );
 }
 
 void MyAppDelegate::applicationDidFinishLaunching( NS::Notification* pNotification )
@@ -175,6 +174,7 @@ void MyAppDelegate::applicationDidFinishLaunching( NS::Notification* pNotificati
 
     NS::Application* pApp = reinterpret_cast< NS::Application* >( pNotification->object() );
     pApp->activateIgnoringOtherApps( true );
+    pApp->setActivationPolicy( NS::ActivationPolicy::ActivationPolicyRegular );
 }
 
 bool MyAppDelegate::applicationShouldTerminateAfterLastWindowClosed( NS::Application* pSender )
