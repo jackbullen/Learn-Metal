@@ -2,6 +2,8 @@
 #import <MetalKit/MetalKit.h>
 #import <AppKit/AppKit.h>
 #import <simd/simd.h>
+#import <chrono>
+#import <time.h>
 
 #define kNumRows 10
 #define kNumColumns 10
@@ -10,6 +12,11 @@
 #define kTextureWidth 128
 #define kTextureHeight 128
 static const size_t kMaxFramesInFlight = 3;
+// static constexpr double kAutoCaptureTimeoutSecs = std::chrono::seconds(3).count();
+
+// auto start = std::chrono::system_clock::now();
+
+NSString* NSTemporaryDirectory(void);
 
 namespace math
 {
@@ -54,6 +61,9 @@ struct CameraData
 - (void)buildTextures;
 - (void)buildBuffers;
 - (void)draw:(MTKView *)view;
+- (void)triggerCapture;
++ (BOOL)beginCapture;
++ (void)setBeginCapture:(BOOL)capture;
 @end
 
 @interface MyMTKViewDelegate : NSObject<MTKViewDelegate>
@@ -108,10 +118,6 @@ int main(int argc, const char *argv[])
     [pAppQuitItem setTarget:self];
     [pAppMenu addItem:pAppQuitItem];
     [pAppMenuItem setSubmenu:pAppMenu];
-    [pMainMenu addItem:pAppMenuItem];
-    [pAppQuitItem release];
-    [pAppMenu release];
-    [pAppMenuItem release];
 
     // Window Menu
     NSMenuItem *pWindowMenuItem = [[NSMenuItem alloc] initWithTitle:@"Window" action:nil keyEquivalent:@""];
@@ -120,10 +126,27 @@ int main(int argc, const char *argv[])
     [pCloseWindowItem setTarget:self];
     [pWindowMenu addItem:pCloseWindowItem];
     [pWindowMenuItem setSubmenu:pWindowMenu];
+
+    // Capture Menu
+    NSMenuItem *pCaptureMenuItem = [[NSMenuItem alloc] initWithTitle:@"Capture" action:nil keyEquivalent:@""];
+    NSMenu *pCaptureMenu = [[NSMenu alloc] initWithTitle:@"Capture"];
+    NSMenuItem *pBeginCaptureItem = [pCaptureMenu addItemWithTitle:@"GPU Trace" action:@selector(setBeginCapture:) keyEquivalent:@"c"];
+    [pBeginCaptureItem setTarget:[Renderer class]];
+    [pBeginCaptureItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
+    [pCaptureMenuItem setSubmenu:pCaptureMenu];
+
+    [pMainMenu addItem:pAppMenuItem];
     [pMainMenu addItem:pWindowMenuItem];
-    [pCloseWindowItem release];
+    [pMainMenu addItem:pCaptureMenuItem];
+
+    [pAppMenu release];
+    [pAppQuitItem release];
+    [pAppMenuItem release];
     [pWindowMenu release];
+    [pCaptureMenu release];
+    [pCloseWindowItem release];
     [pWindowMenuItem release];
+    [pCaptureMenuItem release];
 
     return [pMainMenu autorelease];
 }
@@ -155,7 +178,7 @@ int main(int argc, const char *argv[])
     [_pView setDelegate:_pViewDelegate];
 
     [_pWindow setContentView:_pView];
-    [_pWindow setTitle:@"09 - Compute to Render"];
+    [_pWindow setTitle:@"010 - Programmatic GPU Capture"];
     [_pWindow makeKeyAndOrderFront:nil];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -300,6 +323,8 @@ namespace math
     float _angle;
     uint _animationIndex;
     dispatch_semaphore_t _semaphore;
+    // bool _hasCaptured;
+    NSString* _pTraceSaveFilePath;
 }
 @end
 
@@ -531,6 +556,11 @@ namespace math
 {
     @autoreleasepool
     {
+        if (_beginCapture)
+        {
+            [self triggerCapture];
+        }
+
         // Update state 
 
         _frame = (_frame + 1) % kMaxFramesInFlight;
@@ -631,7 +661,74 @@ namespace math
         // Everything is ready, now wait for semaphore
         dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
         [pCmd commit];
+
+        if (_beginCapture)
+        {
+            MTLCaptureManager *pCaptureManager = [MTLCaptureManager sharedCaptureManager];
+            [pCaptureManager stopCapture];
+            NSLog(@"Made capture %@", _pTraceSaveFilePath);
+            NSString *pOpenCmd = [@"open " stringByAppendingString:_pTraceSaveFilePath];
+            system([pOpenCmd UTF8String]);
+
+            [Renderer setBeginCapture:false];
+            // _hasCaptured=true;
+        }
     }
+}
+
+static BOOL _beginCapture = NO;
+
++ (BOOL)beginCapture 
+{
+    return _beginCapture;
+}
+
++ (void)setBeginCapture:(BOOL)capture
+{   
+    _beginCapture = capture;
+}
+
+- (void)triggerCapture
+{
+    bool success;
+
+    MTLCaptureManager *pCaptureManager = [MTLCaptureManager sharedCaptureManager];
+    success = [pCaptureManager supportsDestination:MTLCaptureDestinationGPUTraceDocument];
+    // Info.plist is required in binary dir, see README
+    if (!success)
+    {
+        NSLog(@"Capture support is not enabled\n");
+        assert(false);
+    }
+
+    char filename[NAME_MAX];
+    std::time_t now;
+    std::time(&now);
+    std::strftime(filename, NAME_MAX, "capture-%H-%M-%S_%m-%d-%y.gputrace", std::localtime(&now));
+
+    _pTraceSaveFilePath = [NSTemporaryDirectory() stringByAppendingString:[NSString stringWithUTF8String:filename]];
+    NSURL *pURL = [[NSURL alloc] initFileURLWithPath:_pTraceSaveFilePath isDirectory:NO];
+
+    MTLCaptureDescriptor *pCaptureDescriptor = [[MTLCaptureDescriptor alloc] init];
+    [pCaptureDescriptor setDestination:MTLCaptureDestinationGPUTraceDocument];
+    [pCaptureDescriptor setOutputURL:pURL];
+    [pCaptureDescriptor setCaptureObject:_pDevice];
+
+    NSError *error = nullptr;
+
+    success = [pCaptureManager startCaptureWithDescriptor:pCaptureDescriptor error:&error];
+    if (!success)
+    {
+        NSLog(@"Failed to start capture: \"%@\" for file \"%s\"\n", [error localizedDescription], filename);
+        assert(false);
+    } 
+    else 
+    {
+        NSLog(@"Capture started");
+    }
+
+    pURL = nil;
+    [pCaptureDescriptor release];
 }
 
 @end

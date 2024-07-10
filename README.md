@@ -12,22 +12,8 @@
 * 07 - texturing : Texture Triangles
 * 08 - compute : Use the GPU for General Purpose Computation
 * 09 - compute-to-render : Render the Results of a Compute Kernel
-
---- 
-
 * 10 - frame-debugging : Capture GPU Commands for Debugging
 
-## Dependencies
-
-- cpp: 
-    - metal-cpp (Foundation, Metal, QuartzCore)
-    - metal-cpp-extensions (AppKit, MetalKit)
-
-- objc: 
-    - Metal
-    - MetalKit
-    - AppKit
-    
 ## Sample 0: Create a Window for Metal Rendering
 
 The `00-window` sample shows how to create a macOS application with a window capable of displaying content drawn using Metal. This sample clears the contents of the window to a solid red color.
@@ -509,16 +495,16 @@ This ensures the results are correct, without the need to implement any GPU time
 
 ## Sample 10: Capture GPU Commands for Debugging
 
-The `10-frame-debugging` sample builds on the previous one by adding functionality to ease debugging of the Metal code. Specifically, the sample generates a *GPU frame capture*, which is a recording of Metal state and commands that you can examine in Xcode.
+`10-frame-debugging` generates a *GPU frame capture*, which is a recording of Metal state and commands that you can examine.
 
-This sample triggers a capture under two different conditions: via a menu item, or after a short timeout. In both cases, the sample uses a `MTL::CaptureManager` object to begin the capture from within the renderer's `triggerCapture()` method. The method begins by obtaining the global capture manager and checking if the device supports capturing Metal commands:
+This sample triggers a capture via a menu item. The sample `MTLCaptureManager` begins the capture from within the renderer's `triggerCapture` method. The method begins by obtaining the global capture manager and checking if the device supports capturing Metal commands:
 
-``` other
-MTL::CaptureManager* pCaptureManager = MTL::CaptureManager::sharedCaptureManager();
-success = pCaptureManager->supportsDestination( MTL::CaptureDestinationGPUTraceDocument );
+```objective-c
+MTLCaptureManager *pCaptureManager = [MTLCaptureManager sharedCaptureManager];
+success = [pCaptureManager supportsDestination:MTLCaptureDestinationGPUTraceDocument];
 ```
 
-A device will only support capturing Metal commands if the application's Info.plist file has the `MetalCaputureEnabled` key set to `true`.
+A device will only support capturing Metal commands if there is a file named Info.plist in the same directory as the running executable which contains
 
 ```
 <dict>
@@ -527,15 +513,17 @@ A device will only support capturing Metal commands if the application's Info.pl
 </dict>
 ```
 
-For applications built as part of a bundle, Xcode embeds plists at build time. However apps, such as this sample, which are not part of a bundle, must explicitly link the plist file using the clang linker. The Makefile included with these samples uses the following linker flag to link the plist to this sample's executable.
+For applications built as part of a bundle, Xcode embeds plists at build time. *However apps, such as this sample, which are not part of a bundle, must explicitly link the plist file using the clang linker. The Makefile included with these samples uses the following linker flag to link the plist to this sample's executable.*
 
 ```
 sectcreate __TEXT __info_plist ./10-frame-debugging/Info.plist
 ```
 
-Next, the renderer creates a `MTL::CaptureDescriptor` object. Here, it specifies that Metal should write the capture data to a file and designates where the file should appear.  It also specifies that Metal should capture all commands executed by the device.   
+**Note:** GPU captures are supported for me if I put the Info.plist in the same directory as the final executable.
 
-``` other
+Next, the renderer creates a `MTLCaptureDescriptor` object. Here, it specifies that Metal should write the capture data to a file and designates where the file should appear.  It also specifies that Metal should capture all commands executed by the device.   
+
+```c++
 MTL::CaptureDescriptor* pCaptureDescriptor = MTL::CaptureDescriptor::alloc()->init();
 
 pCaptureDescriptor->setDestination( MTL::CaptureDestinationGPUTraceDocument );
@@ -543,22 +531,35 @@ pCaptureDescriptor->setOutputURL( pURL );
 pCaptureDescriptor->setCaptureObject( _pDevice );
 ```
 
+```objective-c
+MTLCaptureDescriptor *pCaptureDescriptor = [[MTLCaptureDescriptor alloc] init];
+[pCaptureDescriptor setDestination:MTLCaptureDestinationGPUTraceDocument];
+[pCaptureDescriptor setOutputURL:pURL];
+
+[pCaptureDescriptor setCaptureObject:_pDevice];
+```
+
 * Note: it is important that the app has permissions to write a file to the destination, otherwise an error may occur.
 
-The renderer calls the `startCapture()` method to immediately begin capturing commands.
+The renderer calls the `startCapture` method to immediately begin capturing commands.
 
-``` other
+```c++
 success = pCaptureManager->startCapture( pCaptureDescriptor, &pError );
 ```
 
-Until the renderer calls the `stopCapture()` method, Metal records all commands executed by the device.
+```objective-c
+success = [pCaptureManager startCaptureWithDescriptor:pCaptureDescriptor error:&error];
+```
 
-``` other
+Until the renderer calls the `stopCapture` method, Metal records all commands executed by the device.
+
+```c++
 MTL::CaptureManager* pCaptureManager = MTL::CaptureManager::sharedCaptureManager();
 pCaptureManager->stopCapture();
 ```
 
+```objective-c
+[pCaptureManager stopCapture];
+```
+
 When the capture completes, the sample automatically opens the .gputrace file in Xcode. However, the trace file persists even after the application exits, allowing you to open it anytime later.
-
-
-
