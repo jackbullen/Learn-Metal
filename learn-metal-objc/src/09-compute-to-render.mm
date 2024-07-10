@@ -50,7 +50,7 @@ struct CameraData
 - (void)buildShaders;
 - (void)buildComputePipeline;
 - (void)buildDepthStencilStates;
-- (void)generateMandelbrotTexture;
+- (void)generateMandelbrotTexture:(id<MTLCommandBuffer>)pCommandBuffer;
 - (void)buildTextures;
 - (void)buildBuffers;
 - (void)draw:(MTKView *)view;
@@ -155,7 +155,7 @@ int main(int argc, const char *argv[])
     [_pView setDelegate:_pViewDelegate];
 
     [_pWindow setContentView:_pView];
-    [_pWindow setTitle:@"08 - Compute"];
+    [_pWindow setTitle:@"09 - Compute to Render"];
     [_pWindow makeKeyAndOrderFront:nil];
 
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -295,8 +295,10 @@ namespace math
     id<MTLBuffer> _pInstanceDataBuffer[kMaxFramesInFlight];
     id<MTLBuffer> _pCameraDataBuffer[kMaxFramesInFlight];
     id<MTLBuffer> _pIndexBuffer;
+    id<MTLBuffer> _pTextureAnimationBuffer;
     int _frame;
     float _angle;
+    uint _animationIndex;
     dispatch_semaphore_t _semaphore;
 }
 @end
@@ -315,7 +317,6 @@ namespace math
         [self buildDepthStencilStates];
         [self buildTextures];
         [self buildBuffers];
-        [self generateMandelbrotTexture];
         _semaphore = dispatch_semaphore_create(kMaxFramesInFlight);
     }
     return self;
@@ -339,6 +340,7 @@ namespace math
     _pShaderLibrary = nil;
     _pDepthStencilState = nil;
     _pTexture = nil;
+    _pTextureAnimationBuffer = nil;
     [super dealloc];
 }
 
@@ -389,7 +391,7 @@ namespace math
 {
     NSError* error = nil;
 
-    NSString* kernelSrc = [NSString stringWithContentsOfFile:@"src/shaders/08-mandelbrot.metal" 
+    NSString* kernelSrc = [NSString stringWithContentsOfFile:@"src/shaders/09-mandelbrot.metal" 
                                         encoding:NSUTF8StringEncoding 
                                             error:&error];
     
@@ -502,23 +504,27 @@ namespace math
     {
         _pCameraDataBuffer[i] = [_pDevice newBufferWithLength:cameraDataSize options:MTLResourceStorageModeManaged];
     }
+
+    _pTextureAnimationBuffer = [_pDevice newBufferWithLength:sizeof(uint) options:MTLResourceStorageModeManaged];
 }
 
-- (void)generateMandelbrotTexture 
+- (void)generateMandelbrotTexture:(id<MTLCommandBuffer>)pCommandBuffer
 {
-    id<MTLCommandBuffer> pCommandBuffer = [_pCommandQueue commandBuffer];
+    uint* ptr = reinterpret_cast<uint*>([_pTextureAnimationBuffer contents]);
+    *ptr = (_animationIndex++) % 5000;
+    [_pTextureAnimationBuffer didModifyRange:NSMakeRange(0, _pTextureAnimationBuffer.length)];
+
     id<MTLComputeCommandEncoder> pComputeEncoder = [pCommandBuffer computeCommandEncoder];
     [pComputeEncoder setComputePipelineState:_pComputePSO];
     [pComputeEncoder setTexture:_pTexture atIndex:0];
+    [pComputeEncoder setBuffer:_pTextureAnimationBuffer offset:0 atIndex:0];
 
     MTLSize gridSize = MTLSizeMake(kTextureWidth, kTextureHeight, 1);
     NSUInteger threadGroupSize = [_pComputePSO maxTotalThreadsPerThreadgroup];
     MTLSize threadgroupSize = MTLSizeMake(threadGroupSize, 1, 1);
 
-    // [pComputeEncoder dispatchThreadgroups:gridSize threadsPerThreadgroup:threadgroupSize];
     [pComputeEncoder dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
     [pComputeEncoder endEncoding];
-    [pCommandBuffer commit];
 }
 
 - (void)draw:(MTKView *)pView
@@ -591,13 +597,13 @@ namespace math
         pCameraData->worldNormalTransform = math::chopMat(math::makeIdentity());
         [pCameraDataBuffer didModifyRange:NSMakeRange(0, pCameraDataBuffer.length)];
 
-        // Send commands
-
         id<MTLCommandBuffer> pCmd = [_pCommandQueue commandBuffer];
 
         [pCmd addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
             dispatch_semaphore_signal(_semaphore);
         }];
+
+        [self generateMandelbrotTexture:pCmd];
 
         MTLRenderPassDescriptor* pRpd = pView.currentRenderPassDescriptor;
         id<MTLRenderCommandEncoder> pEnc = [pCmd renderCommandEncoderWithDescriptor:pRpd];

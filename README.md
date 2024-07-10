@@ -8,13 +8,13 @@
 * 03 - animation : Animate Rendering
 * 04 - instancing : Draw Multiple Instance of an Object
 * 05 - perspective : Render 3D with Perspective Projection
-
---- 
-
 * 06 - lighting : Light Geometry
 * 07 - texturing : Texture Triangles
 * 08 - compute : Use the GPU for General Purpose Computation
 * 09 - compute-to-render : Render the Results of a Compute Kernel
+
+--- 
+
 * 10 - frame-debugging : Capture GPU Commands for Debugging
 
 ## Dependencies
@@ -492,22 +492,18 @@ Once executed, the compute kernel fills the texture with a Mandelbrot set image.
 
 ## Sample 9: Mix Compute with Rendering
 
-The `09-compute-to-render` sample augments the previous one to regenerate the texture image each frame using a compute kernel right before issuing rendering commands. This enables implementing an animated texture effect, where a CPU-driven variable controls the zoom level of the Mandelbrot set.
+`09-compute-to-render` regenerates the texture image each frame using a compute kernel right before issuing rendering commands. This enables implementing an animated texture effect, where a CPU-driven variable controls the zoom level of the Mandelbrot set.
 
-To perform the texture generation in each frame, the sample simply encodes commands with the `generateMandelbrotTeture()` method to the same command buffer used for subsequent rendering commands.
+To perform the texture generation in each frame, the sample simply encodes commands with the `generateMandelbrotTeture` method to the same command buffer used for subsequent rendering commands.
 
-``` other
-// Update texture:
+```objective-c
+[self generateMandelbrotTexture:pCmd];
 
-generateMandelbrotTexture( pCmd );
-
-// Begin render pass:
-
-MTL::RenderPassDescriptor* pRpd = pView->currentRenderPassDescriptor();
-MTL::RenderCommandEncoder* pEnc = pCmd->renderCommandEncoder( pRpd );
+MTLRenderPassDescriptor* pRpd = pView.currentRenderPassDescriptor;
+id<MTLRenderCommandEncoder> pEnc = [pCmd renderCommandEncoderWithDescriptor:pRpd];
 ```
 
-By default, Metal tracks hazards for buffers and textures so performing compute work to write into a texture just before the GPU renders witht does not require any explicit synchronization.  Metal will detect the write operation on the texture and ensures that and draw calls that sample from that texture wait until the compute work is complete.
+[By default](https://developer.apple.com/documentation/metal/resource_synchronization?language=objc), Metal tracks hazards for buffers and textures so performing compute work to write into a texture just before the GPU renders with it does not require any explicit synchronization. Metal will detect the write operation on the texture and ensure that draw calls that sample from it wait until the compute work is complete.
 
 This ensures the results are correct, without the need to implement any GPU timeline synchronization logic or resource transitions.
 
