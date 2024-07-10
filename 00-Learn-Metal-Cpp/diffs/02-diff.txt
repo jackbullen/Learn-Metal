@@ -1,0 +1,60 @@
+44a45
+>         MTL::Library* _pShaderLibrary;
+45a47
+>         MTL::Buffer* _pArgBuffer;
+179c181
+<     _pWindow->setTitle( NS::String::string( "01 - Primitive", NS::StringEncoding::UTF8StringEncoding ) );
+---
+>     _pWindow->setTitle( NS::String::string( "02 - Argument Buffers", NS::StringEncoding::UTF8StringEncoding ) );
+229a232,233
+>     _pShaderLibrary->release();
+>     _pArgBuffer->release();
+251,253c255,261
+<         v2f vertex vertexMain( uint vertexId [[vertex_id]],
+<                                device const float3* positions [[buffer(0)]],
+<                                device const float3* colors [[buffer(1)]] )
+---
+>         struct VertexData
+>         {
+>             device float3* positions [[id(0)]];
+>             device float3* colors [[id(1)]];
+>         };
+> 
+>         v2f vertex vertexMain( device const VertexData* vertexData [[buffer(0)]], uint vertexId [[vertex_id]] )
+256,257c264,265
+<             o.position = float4( positions[ vertexId ], 1.0 );
+<             o.color = half3 ( colors[ vertexId ] );
+---
+>             o.position = float4( vertexData->positions[ vertexId ], 1.0 );
+>             o.color = half3(vertexData->colors[ vertexId ]);
+293c301
+<     pLibrary->release();
+---
+>     _pShaderLibrary = pLibrary;
+327a336,354
+> 
+>     using NS::StringEncoding::UTF8StringEncoding;
+>     assert( _pShaderLibrary );
+> 
+>     MTL::Function* pVertexFn = _pShaderLibrary->newFunction( NS::String::string( "vertexMain", UTF8StringEncoding ) );
+>     MTL::ArgumentEncoder* pArgEncoder = pVertexFn->newArgumentEncoder( 0 );
+> 
+>     MTL::Buffer* pArgBuffer = _pDevice->newBuffer( pArgEncoder->encodedLength(), MTL::ResourceStorageModeManaged );
+>     _pArgBuffer = pArgBuffer;
+> 
+>     pArgEncoder->setArgumentBuffer( _pArgBuffer, 0 );
+> 
+>     pArgEncoder->setBuffer( _pVertexPositionsBuffer, 0, 0 );
+>     pArgEncoder->setBuffer( _pVertexColorsBuffer, 0, 1 );
+> 
+>     _pArgBuffer->didModifyRange( NS::Range::Make( 0, _pArgBuffer->length() ) );
+> 
+>     pVertexFn->release();
+>     pArgEncoder->release();
+339,340c366,368
+<     pEnc->setVertexBuffer( _pVertexPositionsBuffer, 0, 0 );
+<     pEnc->setVertexBuffer( _pVertexColorsBuffer, 0, 1 );
+---
+>     pEnc->setVertexBuffer( _pArgBuffer, 0, 0 );
+>     pEnc->useResource( _pVertexPositionsBuffer, MTL::ResourceUsageRead );
+>     pEnc->useResource( _pVertexColorsBuffer, MTL::ResourceUsageRead );

@@ -1,0 +1,78 @@
+39a40
+>         void buildFrameData();
+49a51,55
+>         MTL::Buffer* _pFrameData[3];
+>         float _angle;
+>         int _frame;
+>         dispatch_semaphore_t _semaphore;
+>         static const int kMaxFramesInFlight;
+181c187
+<     _pWindow->setTitle( NS::String::string( "02 - Argument Buffers", NS::StringEncoding::UTF8StringEncoding ) );
+---
+>     _pWindow->setTitle( NS::String::string( "03 - Animation", NS::StringEncoding::UTF8StringEncoding ) );
+221a228,229
+> const int Renderer::kMaxFramesInFlight = 3;
+> 
+223a232,233
+> , _angle ( 0.f )
+> , _frame( 0 )
+227a238,240
+>     buildFrameData();
+> 
+>     _semaphore = dispatch_semaphore_create( Renderer::kMaxFramesInFlight );
+235a249,252
+>     for ( int i = 0; i <  Renderer::kMaxFramesInFlight; ++i )
+>     {
+>         _pFrameData[i]->release();
+>     }
+261c278,283
+<         v2f vertex vertexMain( device const VertexData* vertexData [[buffer(0)]], uint vertexId [[vertex_id]] )
+---
+>         struct FrameData
+>         {
+>             float angle;
+>         };
+> 
+>         v2f vertex vertexMain( device const VertexData* vertexData [[buffer(0)]], constant FrameData* frameData [[buffer(1)]], uint vertexId [[vertex_id]] )
+262a285,286
+>             float a = frameData->angle;
+>             float3x3 rotationMatrix = float3x3( sin(a), cos(a), 0.0, cos(a), -sin(a), 0.0, 0.0, 0.0, 1.0 );
+264c288
+<             o.position = float4( vertexData->positions[ vertexId ], 1.0 );
+---
+>             o.position = float4( rotationMatrix * vertexData->positions[ vertexId ], 1.0 );
+330c354
+< 
+---
+>     
+356a381,393
+> struct FrameData
+> {
+>     float angle;
+> };
+> 
+> void Renderer::buildFrameData()
+> {
+>     for ( int i = 0; i < Renderer::kMaxFramesInFlight; ++i )
+>     {
+>         _pFrameData[ i ]= _pDevice->newBuffer( sizeof( FrameData ), MTL::ResourceStorageModeManaged );
+>     }
+> }
+> 
+360a398,400
+>     _frame = (_frame + 1) % Renderer::kMaxFramesInFlight;
+>     MTL::Buffer* pFrameDataBuffer = _pFrameData[ _frame ];
+> 
+361a402,410
+>     dispatch_semaphore_wait( _semaphore, DISPATCH_TIME_FOREVER );
+>     Renderer* pRenderer = this;
+>     pCmd->addCompletedHandler( ^void( MTL::CommandBuffer* pCmd ){
+>         dispatch_semaphore_signal( pRenderer->_semaphore );
+>     });
+> 
+>     reinterpret_cast< FrameData * >( pFrameDataBuffer->contents() )->angle = (_angle += 0.01f);
+>     pFrameDataBuffer->didModifyRange( NS::Range::Make( 0, sizeof( FrameData ) ) );
+> 
+368a418,419
+> 
+>     pEnc->setVertexBuffer( pFrameDataBuffer, 0, 1 );
