@@ -3,6 +3,6 @@
 
 @interface MetalAdder : NSObject
 - (instancetype)initWithDevice:(id<MTLDevice>)device;
-- (void)prepareBuffers:(float*)arr1 :(float*)arr2 :(int)arrayLength;
-- (void)compute;
+- (float*)add:(float*)arr1 to:(float*)arr2 length:(int)length;
+- (void)display;
 @end

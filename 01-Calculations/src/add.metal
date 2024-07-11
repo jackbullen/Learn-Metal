@@ -2,10 +2,10 @@
 using namespace metal;
 
 // MTL version
-kernel void add(device const float* inA,
-                device const float* inB,
+kernel void add(device const float* arr1,
+                device const float* arr2,
                 device float* result,
-                uint index [[thread_position_in_grid]])
+                uint i [[thread_position_in_grid]])
 {
-    result[index] = inA[index] + inB[index];
+    result[i] = arr1[i] + arr2[i];
 }

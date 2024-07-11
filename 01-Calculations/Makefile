@@ -9,13 +9,13 @@ obj/main.o: src/main.m | obj
 obj/MetalAdder.o: src/MetalAdder.m src/MetalAdder.h | obj
 	clang++ -c src/MetalAdder.m -o obj/MetalAdder.o
 
+shader:
+	xcrun -sdk macosx metal src/add.metal -o bin/add.metallib
+
 obj:
 	mkdir obj
 bin:
 	mkdir bin
 
-shader:
-	xcrun -sdk macosx metal src/add.metal -o bin/add.metallib
-
 clean:
-	rm -rf obj bin
+	rm -r obj bin
