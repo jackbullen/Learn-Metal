@@ -19,7 +19,7 @@
 
     NSError *error = nil;
     // id<MTLLibrary> library = [_pDevice newDefaultLibrary];
-    NSURL* URL = [NSURL URLWithString:@"./src/add.metallib"];
+    NSURL* URL = [NSURL URLWithString:@"./bin/add.metallib"];
     id<MTLLibrary> library = [_pDevice newLibraryWithURL:URL error:&error];
     if (!library) {
       NSLog(@"Failed to initialize library: %@", [error localizedDescription]);

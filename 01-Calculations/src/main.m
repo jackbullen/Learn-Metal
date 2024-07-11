@@ -27,6 +27,9 @@ int main () {
         NSLog(@"Started computing");
         [adder compute];
         NSLog(@"Finished computing");
+
+        free(arr1);
+        free(arr2);
     }
     return 0;
 }

@@ -1,16 +1,21 @@
 default: build shader
 
-build: src/main.o src/MetalAdder.o
-	clang++ $^ -framework Foundation -framework Metal -framework CoreGraphics -o main
+build: obj/main.o obj/MetalAdder.o | bin
+	clang++ $^ -framework Foundation -framework Metal -framework CoreGraphics -o bin/main
 
-src/main.o: src/main.m
-	clang++ -c src/main.m -o src/main.o
+obj/main.o: src/main.m | obj
+	clang++ -c src/main.m -o obj/main.o
 
-src/MetalAdder.o: src/MetalAdder.m src/MetalAdder.h
-	clang++ -c src/MetalAdder.m -o src/MetalAdder.o
+obj/MetalAdder.o: src/MetalAdder.m src/MetalAdder.h | obj
+	clang++ -c src/MetalAdder.m -o obj/MetalAdder.o
+
+obj:
+	mkdir obj
+bin:
+	mkdir bin
 
 shader:
-	xcrun -sdk macosx metal src/add.metal -o src/add.metallib
+	xcrun -sdk macosx metal src/add.metal -o bin/add.metallib
 
 clean:
-	rm main src/main.o src/MetalAdder.o src/add.metallib
+	rm -rf obj bin
