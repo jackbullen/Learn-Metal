@@ -8,7 +8,7 @@ A class to manage all of the Metal objects this app creates.
 #import "MetalAdder.h"
 
 // The number of floats in each array, and the size of the arrays in bytes.
-const unsigned int arrayLength = 1 << 24;
+const unsigned int arrayLength = 10;
 const unsigned int bufferSize = arrayLength * sizeof(float);
 
 @implementation MetalAdder
@@ -34,7 +34,9 @@ const unsigned int bufferSize = arrayLength * sizeof(float);
     if (self)
     {
         _mDevice = device;
-
+        
+        NSLog(@"arrayLength = %d, bufferSize = %d", arrayLength, bufferSize);
+        
         NSError* error = nil;
 
         // Load the shader files with a .metal file extension in the project
@@ -149,15 +151,15 @@ const unsigned int bufferSize = arrayLength * sizeof(float);
     float* b = _mBufferB.contents;
     float* result = _mBufferResult.contents;
 
-    for (unsigned long index = 0; index < arrayLength; index++)
+    for (unsigned long i = 0; i < arrayLength; i++)
     {
-        if (result[index] != (a[index] + b[index]))
+        if (result[i] != (a[i] + b[i]))
         {
             printf("Compute ERROR: index=%lu result=%g vs %g=a+b\n",
-                   index, result[index], a[index] + b[index]);
-            assert(result[index] == (a[index] + b[index]));
+                   i, result[i], a[i] + b[i]);
+            assert(result[i] == (a[i] + b[i]));
         }
-        printf("%f", result[index]);
+        printf("res = %f, arr1 = %f, arr2 = %f\n", result[i], a[i], b[i]);
     }
     printf("Compute results as expected\n");
 }

@@ -1,24 +1,16 @@
-/*
-See LICENSE folder for this sample’s licensing information.
-
-Abstract:
-An app that performs a simple calculation on a GPU.
-*/
-
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import "MetalAdder.h"
 
-// This is the C version of the function that the sample
-// implements in Metal Shading Language.
-void add_arrays(const float* inA,
-                const float* inB,
+// C version
+void add_arrays(const float* arr1,
+                const float* arr2,
                 float* result,
                 int length)
 {
-    for (int index = 0; index < length ; index++)
+    for (int i = 0; i < length; i++)
     {
-        result[index] = inA[index] + inB[index];
+        result[i] = arr1[i] + arr2[i];
     }
 }
 
