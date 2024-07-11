@@ -12,9 +12,6 @@
 #define kTextureWidth 128
 #define kTextureHeight 128
 static const size_t kMaxFramesInFlight = 3;
-// static constexpr double kAutoCaptureTimeoutSecs = std::chrono::seconds(3).count();
-
-// auto start = std::chrono::system_clock::now();
 
 NSString* NSTemporaryDirectory(void);
 
@@ -62,8 +59,29 @@ struct CameraData
 - (void)buildBuffers;
 - (void)draw:(MTKView *)view;
 - (void)triggerCapture;
-+ (BOOL)beginCapture;
-+ (void)setBeginCapture:(BOOL)capture;
++ (void)setCaptureFrame:(BOOL)capture;
+@end
+
+@interface Renderer()
+{
+    id<MTLDevice> _pDevice;
+    id<MTLCommandQueue> _pCommandQueue;
+    id<MTLLibrary> _pShaderLibrary;
+    id<MTLRenderPipelineState> _pPSO;
+    id<MTLComputePipelineState> _pComputePSO;
+    id<MTLDepthStencilState> _pDepthStencilState;
+    id<MTLTexture> _pTexture;
+    id<MTLBuffer> _pVertexDataBuffer;
+    id<MTLBuffer> _pInstanceDataBuffer[kMaxFramesInFlight];
+    id<MTLBuffer> _pCameraDataBuffer[kMaxFramesInFlight];
+    id<MTLBuffer> _pIndexBuffer;
+    id<MTLBuffer> _pTextureAnimationBuffer;
+    int _frame;
+    float _angle;
+    uint _animationIndex;
+    dispatch_semaphore_t _semaphore;
+    NSString* _pTraceSaveFilePath;
+}
 @end
 
 @interface MyMTKViewDelegate : NSObject<MTKViewDelegate>
@@ -130,9 +148,9 @@ int main(int argc, const char *argv[])
     // Capture Menu
     NSMenuItem *pCaptureMenuItem = [[NSMenuItem alloc] initWithTitle:@"Capture" action:nil keyEquivalent:@""];
     NSMenu *pCaptureMenu = [[NSMenu alloc] initWithTitle:@"Capture"];
-    NSMenuItem *pBeginCaptureItem = [pCaptureMenu addItemWithTitle:@"GPU Trace" action:@selector(setBeginCapture:) keyEquivalent:@"c"];
-    [pBeginCaptureItem setTarget:[Renderer class]];
-    [pBeginCaptureItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
+    NSMenuItem *pCaptureFrameItem = [pCaptureMenu addItemWithTitle:@"GPU Trace" action:@selector(setCaptureFrame:) keyEquivalent:@"c"];
+    [pCaptureFrameItem setTarget:[Renderer class]];
+    [pCaptureFrameItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
     [pCaptureMenuItem setSubmenu:pCaptureMenu];
 
     [pMainMenu addItem:pAppMenuItem];
@@ -304,29 +322,6 @@ namespace math
         return simd_matrix(mat.columns[0].xyz, mat.columns[1].xyz, mat.columns[2].xyz);
     }
 }
-
-@interface Renderer()
-{
-    id<MTLDevice> _pDevice;
-    id<MTLCommandQueue> _pCommandQueue;
-    id<MTLLibrary> _pShaderLibrary;
-    id<MTLRenderPipelineState> _pPSO;
-    id<MTLComputePipelineState> _pComputePSO;
-    id<MTLDepthStencilState> _pDepthStencilState;
-    id<MTLTexture> _pTexture;
-    id<MTLBuffer> _pVertexDataBuffer;
-    id<MTLBuffer> _pInstanceDataBuffer[kMaxFramesInFlight];
-    id<MTLBuffer> _pCameraDataBuffer[kMaxFramesInFlight];
-    id<MTLBuffer> _pIndexBuffer;
-    id<MTLBuffer> _pTextureAnimationBuffer;
-    int _frame;
-    float _angle;
-    uint _animationIndex;
-    dispatch_semaphore_t _semaphore;
-    // bool _hasCaptured;
-    NSString* _pTraceSaveFilePath;
-}
-@end
 
 @implementation Renderer
 
@@ -556,7 +551,7 @@ namespace math
 {
     @autoreleasepool
     {
-        if (_beginCapture)
+        if (_captureFrame)
         {
             [self triggerCapture];
         }
@@ -662,30 +657,22 @@ namespace math
         dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
         [pCmd commit];
 
-        if (_beginCapture)
+        if (_captureFrame)
         {
             MTLCaptureManager *pCaptureManager = [MTLCaptureManager sharedCaptureManager];
             [pCaptureManager stopCapture];
             NSLog(@"Made capture %@", _pTraceSaveFilePath);
-            NSString *pOpenCmd = [@"open " stringByAppendingString:_pTraceSaveFilePath];
-            system([pOpenCmd UTF8String]);
 
-            [Renderer setBeginCapture:false];
-            // _hasCaptured=true;
+            [Renderer setCaptureFrame:false];
         }
     }
 }
 
-static BOOL _beginCapture = NO;
+static BOOL _captureFrame = NO;
 
-+ (BOOL)beginCapture 
-{
-    return _beginCapture;
-}
-
-+ (void)setBeginCapture:(BOOL)capture
++ (void)setCaptureFrame:(BOOL)capture
 {   
-    _beginCapture = capture;
+    _captureFrame = capture;
 }
 
 - (void)triggerCapture
