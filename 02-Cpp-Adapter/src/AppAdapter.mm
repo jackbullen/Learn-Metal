@@ -8,15 +8,15 @@
     return self;
 }
 
-- (void)draw:(MTKView*)view;
-{
-    _pRenderer->draw((__bridge MTK::View *)view);
-}
-
 - (void)dealloc 
 {
     delete _pRenderer;
     [super dealloc];
+}
+
+- (void)draw:(MTKView*)view;
+{
+    _pRenderer->draw((__bridge MTK::View *)view);
 }
 
 @end
