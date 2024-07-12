@@ -379,3 +379,18 @@ Because the calculations are only used to illustrate the process of creating a M
 [MTLLibrary]: https://developer.apple.com/documentation/metal/mtllibrary
 [MTLFunction]: https://developer.apple.com/documentation/metal/mtlfunction
 [HelloTriangle]: https://developer.apple.com/documentation/metal
+
+# Questions
+
+Why do we not need to call `didModifyRange` when updating the buffer contents. It seems like the data changes are synchronized (regardless of Shared or Managed mode) without calling this method. This seems to contradict what is in the documentation for both modes:
+
+- `MTLStorageModeShared`: When either the CPU or GPU changes the contents of the resource, you’re responsible for synchronizing access to the texture from the other participant.
+
+- `MTLStorageModeManaged`: The CPU and GPU may maintain separate copies of the resource, and any changes must be explicitly synchronized. *This one clearly states they need to be explicitly synchronized*
+
+**Answer:** OK, I think it is because my computer contains IntelHD40000 which uses shared RAM, so there is nothing to synchronize since they are both reading from the same thing. But if the code was run on a computer where the GPU has seperate memory, then it would matter.
+
+But it looks like most macs, and ios devices, share RAM. So why bother with `didModifyRange`? Or thinking about Shared vs Managed mode?
+
+- https://developer.apple.com/documentation/metal/resource_fundamentals/choosing_a_resource_storage_mode_for_intel_and_amd_gpus?language=objc
+- https://stackoverflow.com/questions/69802692/best-practice-for-testing-managed-buffers

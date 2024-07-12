@@ -13,9 +13,10 @@
   int _arrayLength;
 }
 
-// Store MTLDevice, MTLCommandQueue, and MTLComputePipelineState 
-// into instance variables
+// Store MTLDevice, MTLCommandQueue, MTLComputePipelineState,
+// and MTLBuffers into instance variables
 - (instancetype)initWithDevice:(id<MTLDevice>)device 
+                  arrayLength:(int)arrayLength
 {
   self = [super init];
   if (self) 
@@ -24,15 +25,12 @@
 
     NSError *error = nil;
 
-    // initialize command queue
     _pCommandQueue = [_pDevice newCommandQueue];
     if (!_pCommandQueue) 
     {
       NSLog(@"Failed to create command queue\n");
       assert(false);
     }
-
-    // initialize compute pipeline state(s)
 
     NSURL* URL = [NSURL URLWithString:@"./bin/add.metallib"];
     id<MTLLibrary> library = [_pDevice newLibraryWithURL:URL error:&error];
@@ -55,22 +53,36 @@
       NSLog(@"Failed to create add pipeline state\n");
       assert(false);
     }
+    
+    [self buildBuffers:arrayLength];
   }
   return self;
 }
 
 // Store MTLBuffer objects into instance variables
-- (void)prepareBuffers:(float *)arr1 :(float *)arr2 :(int)arrayLength 
+- (void)buildBuffers:(int)arrayLength 
 {
-  _pArray1Buffer = [_pDevice newBufferWithBytes:arr1 
-                                length:arrayLength * sizeof(float) 
-                                    options:MTLResourceStorageModeShared];
-  _pArray2Buffer = [_pDevice newBufferWithBytes:arr2 
-                                length:arrayLength * sizeof(float) 
-                                    options:MTLResourceStorageModeShared];
+  _pArray1Buffer = [_pDevice newBufferWithLength:arrayLength * sizeof(float) 
+                                options:MTLResourceStorageModeManaged];
+  _pArray2Buffer = [_pDevice newBufferWithLength:arrayLength * sizeof(float)
+                                options:MTLResourceStorageModeManaged];
   _pResultBuffer = [_pDevice newBufferWithLength:arrayLength * sizeof(float) 
-                                options:MTLResourceStorageModeShared];
+                                options:MTLResourceStorageModeManaged];
   _arrayLength = arrayLength;
+}
+
+// Update instance MTLBuffer objects with new data
+- (void)updateBuffers:(float*)arr1 :(float*)arr2
+{
+  float* pArray1Buffer = _pArray1Buffer.contents;
+  float* pArray2Buffer = _pArray2Buffer.contents;
+  for (int i = 0; i < _arrayLength; i++)
+  {
+    pArray1Buffer[i] = arr1[i];
+    pArray2Buffer[i] = arr2[i];
+  }
+  // [_pArray1Buffer didModifyRange:NSMakeRange(0, _pArray1Buffer.length)];
+  // [_pArray1Buffer didModifyRange:NSMakeRange(0, _pArray2Buffer.length)];
 }
 
 // Commit a command buffer to MTLComputePipelineState
@@ -86,11 +98,12 @@
   [pCmd commit];
 
   [pCmd waitUntilCompleted];
+  // [_pResultBuffer didModifyRange:NSMakeRange(0, _pResultBuffer.length)];
 }
 
 // Set pipeline and buffers to encoder and encode compute commands
 - (void)addEncoding:(id<MTLComputeCommandEncoder>)pCEnc 
-        withPipeline:(id<MTLComputePipelineState>)pCPSO 
+          withPipeline:(id<MTLComputePipelineState>)pCPSO 
 {
   [pCEnc setComputePipelineState:pCPSO];
   [pCEnc setBuffer:_pArray1Buffer offset:0 atIndex:0];
@@ -107,12 +120,11 @@
   [pCEnc dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
 }
 
-- (float*)add:(float*)arr1 to:(float*)arr2 length:(int)arrayLength
+- (float*)add:(float*)arr1 to:(float*)arr2
 {
-  [self prepareBuffers:arr1 :arr2 :arrayLength];
+  [self updateBuffers:arr1 :arr2];
   [self computePipeline:_pAddPSO];
-  float* out = _pResultBuffer.contents;
-  return out;
+  return _pResultBuffer.contents;
 }
 
 - (void)display
