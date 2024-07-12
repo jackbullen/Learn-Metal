@@ -9,6 +9,7 @@
     Renderer *_pRenderer;
 }
 
-- (void)draw:(MTKView*)pView device:(id<MTLDevice>)device;
+- (instancetype)initWithDevice:(id<MTLDevice>)device;
+- (void)draw:(MTKView*)pView;
 
 @end

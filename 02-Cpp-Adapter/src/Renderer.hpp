@@ -6,11 +6,10 @@
 class Renderer 
 {
     public:
-        Renderer(MTK::View *const pView, MTL::Device *const pDevice);
+        Renderer(MTL::Device *const pDevice);
         ~Renderer();
-        void draw() const;
+        void draw(MTK::View *const pView) const;
     private:
-        MTK::View *_pView;
         MTL::Device *const _pDevice;
         MTL::CommandQueue *const _pCommandQueue;
 };

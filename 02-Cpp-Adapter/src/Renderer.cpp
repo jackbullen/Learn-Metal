@@ -6,9 +6,8 @@
 #include "Renderer.hpp"
 #include <iostream>
 
-Renderer::Renderer(MTK::View *const pView, MTL::Device *const pDevice)
-: _pView(pView)
-, _pDevice(pDevice)
+Renderer::Renderer(MTL::Device *const pDevice)
+: _pDevice(pDevice)
 , _pCommandQueue(_pDevice->newCommandQueue())
 {}
 
@@ -17,15 +16,15 @@ Renderer::~Renderer()
     _pCommandQueue->release();
 }
 
-void Renderer::draw() const
+void Renderer::draw(MTK::View* pView) const
 {
     NS::AutoreleasePool* pPool = NS::AutoreleasePool::alloc()->init();
 
     MTL::CommandBuffer *pCmd = _pCommandQueue->commandBuffer();
-    MTL::RenderPassDescriptor *pRpd = _pView->currentRenderPassDescriptor();
+    MTL::RenderPassDescriptor *pRpd = pView->currentRenderPassDescriptor();
     MTL::RenderCommandEncoder *pEnc = pCmd->renderCommandEncoder(pRpd);
     pEnc->endEncoding();
-    pCmd->presentDrawable(_pView->currentDrawable());
+    pCmd->presentDrawable(pView->currentDrawable());
     pCmd->commit();
     
     pPool->release();

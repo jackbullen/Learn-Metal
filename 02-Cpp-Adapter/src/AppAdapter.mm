@@ -2,10 +2,15 @@
 
 @implementation AppAdapter
 
-- (void)draw:(MTKView*)pView device:(id<MTLDevice>)device;
+- (instancetype)initWithDevice:(id<MTLDevice>)device
 {
-    _pRenderer = new Renderer((__bridge MTK::View *)pView, (__bridge MTL::Device *)device);
-    _pRenderer->draw();
+    _pRenderer = new Renderer((__bridge MTL::Device *)device);
+    return self;
+}
+
+- (void)draw:(MTKView*)view;
+{
+    _pRenderer->draw((__bridge MTK::View *)view);
 }
 
 - (void)dealloc 

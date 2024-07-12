@@ -1,11 +1,16 @@
 #import "AppDelegate.h"
 #include "MTKViewDelegate.h"
 
-@interface AppDelegate ()
-
-@end
-
 @implementation AppDelegate
+
+- (void)dealloc
+{
+    [_pWindow release];
+    [_pView release];
+    [_pDevice release];
+    [_pViewDelegate release];
+    [super dealloc];
+}
 
 - (NSMenu *)createMenuBar 
 {

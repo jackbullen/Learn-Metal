@@ -5,7 +5,7 @@ LDFLAGS := -framework Metal -framework MetalKit -framework CoreGraphics -framewo
 SRCS := $(wildcard src/*.cpp src/*.mm)
 OBJS := $(patsubst src/%.cpp,obj/%.o,$(patsubst src/%.mm,obj/%.o,$(SRCS)))
 
-main: $(OBJS)
+bin/main: $(OBJS) | bin
 	$(CC) $(LDFLAGS) $^ -o $@
 
 obj/%.o: src/%.cpp | obj
@@ -14,8 +14,10 @@ obj/%.o: src/%.cpp | obj
 obj/%.o: src/%.mm | obj
 	$(CC) $(CFLAGS) -c $< -o $@
 
+bin:
+	mkdir bin
 obj:
 	mkdir obj
 
 clean:
-	rm -r obj main
+	rm -r obj bin
