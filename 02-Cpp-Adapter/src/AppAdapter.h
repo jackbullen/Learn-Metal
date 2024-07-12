@@ -1,5 +1,6 @@
 #import "QuartzCore/CAMetalLayer.h"
 #import "Metal/MTLDevice.h"
+#import "MetalKit/MetalKit.h"
 #import "Renderer.hpp"
 
 
@@ -8,6 +9,6 @@
     Renderer *_pRenderer;
 }
 
-- (void)draw:(id <CAMetalDrawable>)drawable device:(id<MTLDevice>)device;
+- (void)draw:(MTKView*)pView device:(id<MTLDevice>)device;
 
 @end

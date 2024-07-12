@@ -1,30 +1,21 @@
-# SRCS := $(wildcard *.m)
-# OBJS := $(patsubst %.m, obj/%.o, $(SRCS))
-# EXES := $(patsubst %.m, bin/%, $(SRCS))
-
 CC := clang++
-CFLAGS := -Wall -fno-objc-arc
+CFLAGS := -Wall -std=c++17 -I./metal-cpp -I./metal-cpp-extensions -fno-objc-arc
 LDFLAGS := -framework Metal -framework MetalKit -framework CoreGraphics -framework Cocoa
 
-all: AppDelegate.o AppAdapter.o ViewController.o Renderer.o main
+SRCS := $(wildcard src/*.cpp src/*.mm)
+OBJS := $(patsubst src/%.cpp,obj/%.o,$(patsubst src/%.mm,obj/%.o,$(SRCS)))
 
-main: main.o AppDelegate.o AppAdapter.o ViewController.o Renderer.o
+main: $(OBJS)
 	$(CC) $(LDFLAGS) $^ -o $@
 
-main.o: main.m
+obj/%.o: src/%.cpp | obj
 	$(CC) $(CFLAGS) -c $< -o $@
 
-AppDelegate.o: AppDelegate.m
+obj/%.o: src/%.mm | obj
 	$(CC) $(CFLAGS) -c $< -o $@
 
-AppAdapter.o: AppAdapter.mm
-	$(CC) -std=c++17 -I./metal-cpp -I./metal-cpp-extensions $(CFLAGS) -c $< -o $@
-
-ViewController.o: ViewController.mm
-	$(CC) -std=c++17 -I./metal-cpp -I./metal-cpp-extensions $(CFLAGS) -c $< -o $@
-
-Renderer.o: Renderer.cpp
-	$(CC) -std=c++17 -I./metal-cpp -I./metal-cpp-extensions $(CFLAGS) -c $< -o $@
+obj:
+	mkdir obj
 
 clean:
-	rm *.o main
+	rm -r obj main
