@@ -2,7 +2,6 @@
 #include "MetalKit/MetalKit.hpp"
 #include "Foundation/Foundation.hpp"
 #include "QuartzCore/CAMetalDrawable.hpp"
-#include "Vector.h"
 
 class Renderer 
 {
