@@ -8,6 +8,7 @@
 #define TRAIN_ITERATIONS 300
 #define BATCH_SIZE 40
 #define IMAGE_T __fp16
-static MPSImageFeatureChannelFormat fcFormat = MPSImageFeatureChannelFormatFloat16;
+static MPSImageFeatureChannelFormat fcFormat =
+    MPSImageFeatureChannelFormatFloat16;
 
 #endif

@@ -31,7 +31,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		03874E3B2C4444C100C47B1E /* data */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = data; sourceTree = SOURCE_ROOT; };
 		2E0CC5352289EB00003711E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		2E0CC536228A544B003711E6 /* MNISTClassifierGraph.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MNISTClassifierGraph.mm; sourceTree = "<group>"; };
 		2E0CC537228A544B003711E6 /* MNISTClassifierGraph.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MNISTClassifierGraph.h; sourceTree = "<group>"; };
@@ -44,12 +43,12 @@
 		2E8EE2B82289C49D00514F0E /* MNISTDataSet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MNISTDataSet.h; sourceTree = "<group>"; };
 		2E8EE2B92289C49D00514F0E /* MNISTDataSet.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MNISTDataSet.mm; sourceTree = "<group>"; };
 		2E8EE2BB2289CF8C00514F0E /* libz.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.1.dylib; path = ../../../../../../usr/lib/libz.1.dylib; sourceTree = "<group>"; };
-		2ECC63C622893037000F8F7C /* MPSTrainingClassifier */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = MPSTrainingClassifier; sourceTree = BUILT_PRODUCTS_DIR; };
+		2ECC63C622893037000F8F7C /* MPSTrainingHelloWorld */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; name = MPSTrainingHelloWorld; path = MPSTrainingClassifier; sourceTree = BUILT_PRODUCTS_DIR; };
 		2ECC63C922893037000F8F7C /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		2EF40761228BCF84002E13FA /* Helpers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Helpers.h; sourceTree = "<group>"; };
 		2EF40762228BCF85002E13FA /* Helpers.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Helpers.mm; sourceTree = "<group>"; };
-		BE62A320BE62958000000001 /* SampleCode.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = SampleCode.xcconfig; path = Configuration/SampleCode.xcconfig; sourceTree = "<group>"; };
-		BE763AF0BE7887F000000001 /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
+		BE62A320BE62958000000001 /* SampleCode.xcconfig */ = {isa = PBXFileReference; name = SampleCode.xcconfig; path = Configuration/SampleCode.xcconfig; sourceTree = "<group>"; };
+		BE763AF0BE7887F000000001 /* LICENSE.txt */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,7 +93,7 @@
 		2ECC63C722893037000F8F7C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				2ECC63C622893037000F8F7C /* MPSTrainingClassifier */,
+				2ECC63C622893037000F8F7C /* MPSTrainingHelloWorld */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -119,7 +118,6 @@
 				2E8EE2AF2289B9BE00514F0E /* DataSources.mm */,
 				2E8EE2B82289C49D00514F0E /* MNISTDataSet.h */,
 				2E8EE2B92289C49D00514F0E /* MNISTDataSet.mm */,
-				03874E3B2C4444C100C47B1E /* data */,
 			);
 			path = Common;
 			sourceTree = "<group>";
@@ -137,6 +135,7 @@
 			children = (
 				BE763AF0BE7887F000000001 /* LICENSE.txt */,
 			);
+			name = LICENSE;
 			path = LICENSE;
 			sourceTree = "<group>";
 		};
@@ -150,6 +149,7 @@
 				2ECC63C222893037000F8F7C /* Sources */,
 				2ECC63C322893037000F8F7C /* Frameworks */,
 				2ECC63C422893037000F8F7C /* CopyFiles */,
+				B5E45010B5E44FD000000001,
 			);
 			buildRules = (
 			);
@@ -157,7 +157,7 @@
 			);
 			name = MPSTrainingClassifier;
 			productName = MNIST_Training;
-			productReference = 2ECC63C622893037000F8F7C /* MPSTrainingClassifier */;
+			productReference = 2ECC63C622893037000F8F7C /* MPSTrainingHelloWorld */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -167,7 +167,7 @@
 			isa = PBXProject;
 			attributes = {
 				DefaultBuildSystemTypeForWorkspace = Original;
-				LastUpgradeCheck = 1240;
+				LastUpgradeCheck = 1100;
 				ORGANIZATIONNAME = Apple;
 				TargetAttributes = {
 					2ECC63C522893037000F8F7C = {
@@ -181,7 +181,6 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
-				Base,
 			);
 			mainGroup = 2ECC63BD22893037000F8F7C;
 			productRefGroup = 2ECC63C722893037000F8F7C /* Products */;
@@ -236,7 +235,6 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -246,7 +244,6 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = D4R4L87ATA;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -298,7 +295,6 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -308,7 +304,6 @@
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = D4R4L87ATA;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -330,7 +325,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BE62A320BE62958000000001 /* SampleCode.xcconfig */;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -343,7 +337,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BE62A320BE62958000000001 /* SampleCode.xcconfig */;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
