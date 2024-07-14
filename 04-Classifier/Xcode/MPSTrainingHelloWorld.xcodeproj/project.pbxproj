@@ -31,6 +31,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		03874E3B2C4444C100C47B1E /* data */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = data; sourceTree = SOURCE_ROOT; };
 		2E0CC5352289EB00003711E6 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		2E0CC536228A544B003711E6 /* MNISTClassifierGraph.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MNISTClassifierGraph.mm; sourceTree = "<group>"; };
 		2E0CC537228A544B003711E6 /* MNISTClassifierGraph.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MNISTClassifierGraph.h; sourceTree = "<group>"; };
@@ -118,6 +119,7 @@
 				2E8EE2AF2289B9BE00514F0E /* DataSources.mm */,
 				2E8EE2B82289C49D00514F0E /* MNISTDataSet.h */,
 				2E8EE2B92289C49D00514F0E /* MNISTDataSet.mm */,
+				03874E3B2C4444C100C47B1E /* data */,
 			);
 			path = Common;
 			sourceTree = "<group>";
