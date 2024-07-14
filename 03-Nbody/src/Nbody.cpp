@@ -1,7 +1,5 @@
 #include "Nbody.h"
 
-const double G = 6.67430e-11;
-
 Body::Body(double mass, vec3 x, vec3 v)
     : mass(mass), x(x), v(v), F(vec3(0.0, 0.0, 0.0)) {}
 
@@ -29,7 +27,6 @@ vec3 Body::position() const {return x;}
 vec3 Body::velocity() const {return v;}
 vec3 Body::force() const {return F;}
 void Body::setPosition(vec3 xn) {x = xn;}
-
 
 void System::add(Body *body) 
 {

@@ -1,6 +1,6 @@
 CC := clang++
 CFLAGS := -Wall -std=c++17 -I../metal-cpp -I../metal-cpp-extensions -fno-objc-arc
-LDFLAGS := -framework Metal -framework MetalKit -framework CoreGraphics -framework Cocoa
+LDFLAGS := -framework Metal -framework MetalKit -framework CoreGraphics -framework AppKit
 
 SRCS := $(wildcard src/*.cpp src/*.mm)
 OBJS := $(patsubst src/%.cpp,obj/%.o,$(patsubst src/%.mm,obj/%.o,$(SRCS)))

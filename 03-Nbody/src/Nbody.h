@@ -1,6 +1,8 @@
 #include <vector>
 #include "Vector.h"
 
+const double G = 6.67430e-11;
+
 class Body
 {
     private:
