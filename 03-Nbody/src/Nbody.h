@@ -1,22 +1,22 @@
 #include <vector>
 #include "Vector.h"
 
-const double G = 6.67430e-11;
+const float G = 1;
 
 class Body
 {
     private:
-        double mass;
+        float mass;
         vec3 x;
         vec3 v;
         vec3 F;
     
     public:
-        Body(double mass, vec3 x, vec3 v);
+        Body(float mass, vec3 x, vec3 v);
 
         vec3 actingForces(const Body &other) const;
         void applyForce(vec3 force);
-        void update(double dt);
+        void update(float dt);
         void resetForce();
 
         vec3 position() const;
@@ -28,12 +28,10 @@ class Body
 
 class System 
 {
-    private:
-        std::vector<Body*> bodies;
-    
     public:
+        std::vector<Body*> bodies;
         void add(Body *body);
         void applyForces();
-        void update(double dt);
+        void update(float dt);
         void resetForces();
 };

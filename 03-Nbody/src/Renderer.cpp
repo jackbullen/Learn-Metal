@@ -3,10 +3,7 @@
 #define MTK_PRIVATE_IMPLEMENTATION
 #define CA_PRIVATE_IMPLEMENTATION
 
-#include <cassert>
-#include <simd/simd.h>
 #include "Renderer.hpp"
-#include "math.h"
 
 static constexpr size_t numInstances = 32;
 
@@ -15,6 +12,7 @@ Renderer::Renderer(MTL::Device *const pDevice)
 , _pCommandQueue(_pDevice->newCommandQueue())
 {
     _time = 0;
+    buildSystem();
     buildShaders();
     buildBuffers();
 }
@@ -28,6 +26,22 @@ Renderer::~Renderer()
     _pIndexBuffer->release();
     _pInstanceBuffer->release();
     _pCameraBuffer->release();
+    delete _pSystem;
+}
+
+void Renderer::buildSystem()
+{
+    System* sys = new System;
+
+    Body* sun = new Body(100, {0.f, 0.f, -5.f}, {0, 0, 0});
+    Body* earth = new Body(1, {1.3f, 0.f, -5.f}, {0.f, 8.f, 0.f});
+    Body* moon = new Body(0.4, {1.5f, .0f, -5.f}, {0.f, 9.7f, 0.f});
+
+    sys->add(sun);
+    sys->add(earth);
+    sys->add(moon);
+
+    _pSystem = sys;
 }
 
 void Renderer::buildShaders() 
@@ -172,17 +186,23 @@ void Renderer::draw(MTK::View* pView)
     
     MTL::CommandBuffer *pCmd = _pCommandQueue->commandBuffer();
 
-    _time += 0.01f;
+    _time += 0.003f;
 
-    const float scl = 1.f;
+    _pSystem->applyForces();
+    _pSystem->update(0.001);
+    _pSystem->resetForces();
+
+    const float scl = .1f;
     InstanceData* pInstanceData = reinterpret_cast<InstanceData*>(_pInstanceBuffer->contents());
 
-    simd::float3 objectPosition = {0.f, 0.f, -5.f};
-    simd::float4x4 objectTransform = math::makeTranslate(objectPosition);
+    simd::float3 objectPosition = {0.f, 0.f, -10.f};
+    simd::float4x4 instanceTransform = math::makeTranslate(objectPosition);
     simd::float4x4 scale = math::makeScale({scl, scl, scl});
-    for (size_t i = 0; i < numInstances; i++)
+    for (size_t i = 0; i < _pSystem->bodies.size(); i++)
     {
-        pInstanceData[i].transform = objectTransform * scale;
+        vec3 pos = _pSystem->bodies[i]->position();
+        instanceTransform = math::makeTranslate({pos.x, pos.y, pos.z});
+        pInstanceData[i].transform = instanceTransform * scale;
         pInstanceData[i].color = (simd::float4){0.0, 0.0, 0.0, 0.0};
     }
     _pInstanceBuffer->didModifyRange( NS::Range::Make( 0, _pInstanceBuffer->length() ) );

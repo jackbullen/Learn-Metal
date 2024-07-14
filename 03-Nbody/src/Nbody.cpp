@@ -1,19 +1,19 @@
 #include "Nbody.h"
 
-Body::Body(double mass, vec3 x, vec3 v)
+Body::Body(float mass, vec3 x, vec3 v)
     : mass(mass), x(x), v(v), F(vec3(0.0, 0.0, 0.0)) {}
 
 vec3 Body::actingForces(const Body &other) const 
 {
     vec3 r = other.position() - x;
-    double distance = r.norm();
-    double forceMagnitude = G * mass * other.mass / (distance * distance);
+    float distance = r.norm();
+    float forceMagnitude = G * mass * other.mass / (distance * distance);
     return r.normalized() * forceMagnitude;
 }
 
 void Body::applyForce(vec3 force) {F = F + force;}
 
-void Body::update(double dt)
+void Body::update(float dt)
 {
     vec3 a = F * (1.0 / mass);
     v = v + a*dt;
@@ -48,7 +48,7 @@ void System::applyForces()
     }
 }
 
-void System::update(double dt)
+void System::update(float dt)
 {
     for (size_t i = 0; i < bodies.size(); i++)
     {

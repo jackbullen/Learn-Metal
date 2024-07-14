@@ -2,13 +2,20 @@
 #include "MetalKit/MetalKit.hpp"
 #include "Foundation/Foundation.hpp"
 #include "QuartzCore/CAMetalDrawable.hpp"
+
 #include <simd/simd.h>
+#include <cassert>
+
+#include "Nbody.h"
+#include "Vector.h"
+#include "math.h"
 
 class Renderer 
 {
     public:
         Renderer(MTL::Device* pDevice);
         ~Renderer();
+        void buildSystem();
         void buildShaders();
         void buildBuffers();
         void draw(MTK::View* pView);
@@ -20,6 +27,7 @@ class Renderer
         MTL::Buffer* _pIndexBuffer;
         MTL::Buffer* _pInstanceBuffer;
         MTL::Buffer* _pCameraBuffer;
+        System* _pSystem;
         float _time;
 };
 
