@@ -1,7 +1,9 @@
 #ifndef DATASET_H
 #define DATASET_H
 
+#import <AppKit/AppKit.h>
 #import "Data.h"
+#import "ImageUtils.h"
 
 #define IMAGE_SIZE 28
 #define IMAGE_METADATA_PREFIX_SIZE 16

@@ -22,6 +22,13 @@ int main(int argc, const char *argv[]) {
     // Make the MNIST dataset
     dataset = [[Dataset alloc] init];
 
+    MPSCNNLossLabelsBatch *lossStateBatch = nil;
+
+    MPSImageBatch *batch =
+        [dataset getRandomTrainingBatchWithDevice:gDevice
+                                        batchSize:32
+                                   lossStateBatch:&lossStateBatch];
+    
     // Create the classifier network
     // graph = [[Graph alloc] init];
 
