@@ -1,5 +1,9 @@
 #import "Renderer.h"
 
+#define IMAGE_HEIGHT 28
+#define IMAGE_WIDTH 28
+#define IMAGE_BYTES (IMAGE_HEIGHT * IMAGE_WIDTH)
+
 @interface Renderer()
 {
     id<MTLDevice> _pDevice;
@@ -96,37 +100,52 @@
 
 - (void)buildTextures 
 {
-    const uint32_t tw = 128;
-    const uint32_t th = 128;
+    NSString *filepath = @"data0";
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if (![fileManager fileExistsAtPath:filepath]) {
+        NSLog(@"File does not exist");
+        return;
+    }
+
+    NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:filepath];
+    if (!fileHandle) {
+        NSLog(@"Failed to open file");
+        return;
+    }
+
+    NSData *fileData = [fileHandle readDataToEndOfFile];
+    [fileHandle closeFile];
+
+    const unsigned char *imageBytes = (const unsigned char *)[fileData bytes];
+
+    MPSImageDescriptor *imageDesc = [MPSImageDescriptor
+        imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatUnorm8
+                                    width:IMAGE_WIDTH
+                                    height:IMAGE_HEIGHT
+                            featureChannels:1];
+
+    MPSImage *image = [[MPSImage alloc] initWithDevice:_pDevice
+                                        imageDescriptor:imageDesc];
+
+    [image writeBytes:imageBytes
+            dataLayout:MPSDataLayoutHeightxWidthxFeatureChannels
+            imageIndex:0];
 
     MTLTextureDescriptor* pTextureDesc = [[MTLTextureDescriptor alloc] init];
-    [pTextureDesc setWidth:tw];
-    [pTextureDesc setHeight:th];
-    [pTextureDesc setPixelFormat:MTLPixelFormatBGRA8Unorm];
+    [pTextureDesc setWidth:IMAGE_WIDTH];
+    [pTextureDesc setHeight:IMAGE_HEIGHT];
+    [pTextureDesc setPixelFormat:MTLPixelFormatR8Unorm];
     [pTextureDesc setTextureType:MTLTextureType2D];
     [pTextureDesc setStorageMode:MTLStorageModeManaged];
     [pTextureDesc setUsage:MTLResourceUsageSample|MTLResourceUsageRead];
 
     _pTexture = [_pDevice newTextureWithDescriptor:pTextureDesc];
 
-    uint8_t *pTextureData = (uint8_t*)alloca(tw*th*4);
-    for (size_t y = 0; y < th; y++)
-    {
-        for (size_t x = 0; x < tw; x++)
-        {
-            bool isWhite = (x^y) & 0b1000000;
-            uint8_t c = isWhite ? 0xFF : 0xA;
-
-            size_t i = (y * tw) + x;
-
-            pTextureData[i*4 + 0] = c;
-            pTextureData[i*4 + 1] = c;
-            pTextureData[i*4 + 2] = c;
-            pTextureData[i*4 + 3] = 0xFF;
-        }
-    }
-
-    [_pTexture replaceRegion:MTLRegionMake3D(0, 0, 0, tw, th, 1) mipmapLevel:0 withBytes:pTextureData bytesPerRow:tw*4];
+    [_pTexture replaceRegion:MTLRegionMake2D(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT) 
+                mipmapLevel:0 
+                withBytes:imageBytes 
+                bytesPerRow:IMAGE_WIDTH];
 
     [pTextureDesc release];
 }

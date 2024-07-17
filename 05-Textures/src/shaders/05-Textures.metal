@@ -53,7 +53,7 @@ half4 fragment fragmentMain(v2f in [[stage_in]],
     constexpr sampler s(address::repeat, filter::linear);
     half3 texel = tex.sample(s, in.texcoord).rgb;
 
-    float3 lightD = normalize(float3(1.0, 1.0, 1.0));
+    float3 lightD = normalize(float3(0.0, 0.0, 1.0));
     float3 normal = normalize(in.normal);
 
     half3 illumin = in.color.rgb * texel * saturate(dot(lightD, normal));
