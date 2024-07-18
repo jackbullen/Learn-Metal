@@ -46,9 +46,9 @@ if __name__ == "__main__":
     train_prop = 0.8
     with open("train_images.mnist", "wb") as f:
         f.write(b"".join(images[:int(len(images)*train_prop)]))
-    with open("train_labels.mnist", "w") as f:
-        f.write(json.dumps(labels[:int(len(images)*train_prop)]))# not very efficient, but whatever
+    with open("train_labels.mnist", "wb") as f:
+        f.write(bytes(labels[:int(len(images)*train_prop)]))
     with open("test_images.mnist", "wb") as f:
         f.write(b"".join(images[int(len(images)*train_prop):]))
-    with open("test_labels.mnist", "w") as f:
-        f.write(json.dumps(labels[int(len(images)*train_prop):]))
+    with open("test_labels.mnist", "wb") as f:
+        f.write(bytes(labels[int(len(images)*train_prop):]))
