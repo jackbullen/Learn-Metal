@@ -101,22 +101,45 @@
 
 - (void)buildTextures 
 {
-    NSString *filepath = @"data0";
-
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    if (![fileManager fileExistsAtPath:filepath]) {
+
+    // Log the label for the first image
+
+    NSString *labelsFilepath = @"train_labels.mnist";
+    if (![fileManager fileExistsAtPath:labelsFilepath])
+    {
+        NSLog(@"Labels file does not exist at %@.", labelsFilepath);
+        assert(false);
+    }
+
+    NSFileHandle *labelsFileHandle = [NSFileHandle fileHandleForReadingAtPath:labelsFilepath];
+    if (!labelsFileHandle)
+    {
+        NSLog(@"Failed to open labels");
+        assert(false);
+    }
+
+    NSData *labelsData = [labelsFileHandle readDataOfLength:1];
+    NSLog(@"First train label is %d.", ((const unsigned char *)[labelsData bytes])[0]);
+
+    // Load the first image to texture
+
+    NSString *imagesFilepath = @"train_images.mnist";
+    if (![fileManager fileExistsAtPath:imagesFilepath]) 
+    {
         NSLog(@"File does not exist");
-        return;
+        assert(false);
     }
 
-    NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:filepath];
-    if (!fileHandle) {
-        NSLog(@"Failed to open file");
-        return;
+    NSFileHandle *imagesFileHandle = [NSFileHandle fileHandleForReadingAtPath:imagesFilepath];
+    if (!imagesFileHandle) 
+    {
+        NSLog(@"Failed to open images");
+        assert(false);
     }
 
-    NSData *fileData = [fileHandle readDataToEndOfFile];
-    [fileHandle closeFile];
+    NSData *fileData = [imagesFileHandle readDataToEndOfFile];
+    [imagesFileHandle closeFile];
 
     const unsigned char *imageBytes = (const unsigned char *)[fileData bytes];
 
