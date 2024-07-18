@@ -143,24 +143,6 @@
 
     _pTexture = [_pDevice newTextureWithDescriptor:pTextureDesc];
     _pTexture = image.texture;
-    // id<MTLCommandBuffer> pCmd = [_pCommandQueue commandBuffer];
-    // id<MTLBlitCommandEncoder> blitEncoder = [pCmd blitCommandEncoder];
-    // [blitEncoder copyFromTexture:image.texture 
-    //              sourceSlice:0 
-    //              sourceLevel:0 
-    //              sourceOrigin:MTLOriginMake(0, 0, 0) 
-    //              sourceSize:MTLSizeMake(IMAGE_HEIGHT, IMAGE_WIDTH, 1)
-    //              toTexture:_pTexture destinationSlice:0 
-    //              destinationLevel:0 
-    //              destinationOrigin:MTLOriginMake(0,0,0)];
-    // [blitEncoder endEncoding];
-    // [pCmd commit];
-    // [pCmd waitUntilCompleted];
-
-    // [_pTexture replaceRegion:MTLRegionMake2D(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT) 
-    //             mipmapLevel:0 
-    //             withBytes:imageBytes 
-    //             bytesPerRow:IMAGE_WIDTH];
 
     [pTextureDesc release];
 }
