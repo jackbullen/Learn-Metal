@@ -1,13 +1,17 @@
 #ifndef DATASET_H
 #define DATASET_H
 
-#import <AppKit/AppKit.h>
 #import "Data.h"
 #import "ImageUtils.h"
+#import <AppKit/AppKit.h>
 
 #define IMAGE_SIZE 28
 #define IMAGE_METADATA_PREFIX_SIZE 16
 #define LABELS_METADATA_PREFIX_SIZE 8
+#define IMAGE_WIDTH 28
+#define IMAGE_HEIGHT 28
+#define IMAGE_BYTES (IMAGE_WIDTH * IMAGE_HEIGHT) // one byte per pixel
+#define NUM_IMAGES 10001
 
 @interface Dataset : NSObject {
 @public

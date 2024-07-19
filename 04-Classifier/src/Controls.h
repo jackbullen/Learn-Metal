@@ -6,6 +6,7 @@
 #import <MetalPerformanceShaders/MetalPerformanceShaders.h>
 
 #define TRAIN_ITERATIONS 300
+#define TEST_SET_EVAL_INTERVAL 100
 #define BATCH_SIZE 40
 #define IMAGE_T __fp16
 static MPSImageFeatureChannelFormat fcFormat =

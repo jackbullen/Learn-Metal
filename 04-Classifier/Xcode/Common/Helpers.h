@@ -10,7 +10,7 @@ Minor helper functions.
 
 #import "MNISTDataSet.h"
 
-extern NSUInteger gDone, gCorrect;
+extern NSUInteger Help, gCorrect;
 
 float lossReduceSumAcrossBatch(MPSImageBatch * _Nonnull batch);
 

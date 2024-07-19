@@ -1,10 +1,5 @@
 #import "Dataset.h"
 
-#define IMAGE_WIDTH 28
-#define IMAGE_HEIGHT 28
-#define IMAGE_BYTES (IMAGE_WIDTH * IMAGE_HEIGHT) // one byte per pixel
-#define NUM_IMAGES 1000
-
 @implementation Dataset
 
 - (nullable instancetype)init {
@@ -13,27 +8,23 @@
   if (self == nil)
     return self;
 
-  // NSString *filepath = @"/Users/jackbullen/LearnMetal/04-Classifier/data/data0";
-  // saveImages(filepath, IMAGE_BYTES);
-
   return self;
 }
 
 - (nullable NSArray<MPSImage *> *)
     loadMNISTImagesWithDevice:(id<MTLDevice>)device
-                     fromFile:(NSString *)filepath
-                    batchSize:(NSUInteger)batchSize {
+                     fromFile:(NSString *)filepath {
 
   NSFileManager *fileManager = [NSFileManager defaultManager];
   if (![fileManager fileExistsAtPath:filepath]) {
     NSLog(@"File does not exist");
-    return nil;
+    assert(false);
   }
 
   NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:filepath];
   if (!fileHandle) {
     NSLog(@"Failed to open file");
-    return nil;
+    assert(false);
   }
 
   NSData *fileData = [fileHandle readDataToEndOfFile];
@@ -41,8 +32,9 @@
 
   NSMutableArray<MPSImage *> *images = [NSMutableArray array];
 
-  for (NSUInteger i = 0; i < NUM_IMAGES; i++) {
-    const unsigned char *imageBytes = (const unsigned char *)[fileData bytes] + i * IMAGE_BYTES;
+  for (NSUInteger i = 0; i < 32; i++) {
+    const unsigned char *imageBytes =
+        (const unsigned char *)[fileData bytes] + i * IMAGE_BYTES;
 
     MPSImageDescriptor *imageDesc = [MPSImageDescriptor
         imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatUnorm8
@@ -58,12 +50,36 @@
            imageIndex:0];
 
     [images addObject:image];
-
-    if ([images count] >= batchSize) {
-      break;
-    }
   }
+
   return images;
+}
+
+- (nullable NSArray<NSNumber *> *)loadMNISTLabelsFrom:(NSString *)filepath {
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  if (![fileManager fileExistsAtPath:filepath]) {
+    NSLog(@"File does not exist");
+    assert(false);
+  }
+
+  NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:filepath];
+  if (!fileHandle) {
+    NSLog(@"File failed to be opened");
+    assert(false);
+  }
+
+  NSData *fileData = [fileHandle readDataToEndOfFile];
+  [fileHandle closeFile];
+
+  const unsigned char *labelBytes = (const unsigned char *)[fileData bytes];
+  NSMutableArray<NSNumber *> *labels =
+      [NSMutableArray arrayWithCapacity:NUM_IMAGES];
+  for (NSUInteger i = 0; i < NUM_IMAGES; i++) {
+    unsigned char label = labelBytes[i];
+    [labels addObject:@(label)];
+  }
+
+  return [labels copy];
 }
 
 - (nullable MPSImageBatch *)
@@ -71,26 +87,45 @@
                            batchSize:(NSUInteger)batchSize
                       lossStateBatch:(MPSCNNLossLabelsBatch **)lossStateBatch {
 
-  NSArray<MPSImage *> *trainBatch =
+  // Load Images
+  // could be expensive loading all images into MPSImage,
+  // and only use the batchSize few of them that are randomly selected
+  // instead should do something similar to sample code (just make MPSImages for
+  // the desired images...)
+  NSArray<MPSImage *> *trainImages =
       [self loadMNISTImagesWithDevice:device
-                             fromFile:@"/Users/jackbullen/LearnMetal/"
-                                      @"04-Classifier/data/data0"
-                            batchSize:batchSize];
-
-  if (!trainBatch) {
-    NSLog(@"Failed to load training batch");
-    return nil;
+                             fromFile:@"mnist/train_images.mnist"];
+  if (!trainImages) {
+    NSLog(@"Failed to load training images");
+    assert(false);
   }
+
+  // Load Labels
+  NSArray<NSNumber *> *trainLabels =
+      [self loadMNISTLabelsFrom:@"mnist/train_labels.mnist"];
+  if (!trainLabels) {
+    NSLog(@"Failed to load training labels");
+    assert(false);
+  }
+
+  // Create the batch
+
+  MPSImageBatch *trainBatch = @[];
 
   NSMutableArray<MPSCNNLossLabels *> *lossStateBatchOut =
       [NSMutableArray array];
 
   for (NSUInteger i = 0; i < batchSize; i++) {
-    float labelsBuffer[1] = {0.f};
+    NSUInteger randomIdx = arc4random_uniform((uint32_t)trainImages.count);
 
-    NSData *labelsData = [NSData dataWithBytes:labelsBuffer
-                                        length:sizeof(labelsBuffer)];
+    MPSImage *image = trainImages[randomIdx];
+    NSNumber *label = trainLabels[randomIdx];
 
+    trainBatch = [trainBatch arrayByAddingObject:image];
+
+    float labelFloat = [label floatValue];
+    NSData *labelsData = [NSData dataWithBytes:&labelFloat
+                                        length:sizeof(float)];
     MPSCNNLossDataDescriptor *labelsDesc = [MPSCNNLossDataDescriptor
         cnnLossDataDescriptorWithData:labelsData
                                layout:MPSDataLayoutHeightxWidthxFeatureChannels
@@ -99,11 +134,10 @@
     MPSCNNLossLabels *lossState =
         [[MPSCNNLossLabels alloc] initWithDevice:device
                                 labelsDescriptor:labelsDesc];
-
     [lossStateBatchOut addObject:lossState];
   }
 
-  *lossStateBatch = lossStateBatchOut;
+  *lossStateBatch = [lossStateBatchOut copy];
 
   return trainBatch;
 }
