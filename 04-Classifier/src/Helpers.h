@@ -23,7 +23,7 @@ template <typename T> void checkDigitLabel(MPSImage *image, uint8_t label) {
   int index = -1;
 
   [image readBytes:vals
-        dataLayout:(MPSDataLayoutFeatureChannelsxHeightxWidth)imageIndex:0];
+        dataLayout:(MPSDataLayoutHeightxWidthxFeatureChannels)imageIndex:0];
 
   for (NSUInteger i = 0; i < (NSUInteger)image.featureChannels; i++) {
     for (NSUInteger j = 0; j < image.height; j++) {

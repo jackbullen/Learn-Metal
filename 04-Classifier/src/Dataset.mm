@@ -118,7 +118,7 @@
     [lossStateBatchOut addObject:lossState];
   }
 
-  *lossStateBatch = [lossStateBatchOut copy];
+  *lossStateBatch = lossStateBatchOut;
 
   return trainBatch;
 }

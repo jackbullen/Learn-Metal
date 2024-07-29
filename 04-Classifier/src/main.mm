@@ -30,24 +30,19 @@ id<MTLCommandBuffer> runTrainingIterationBatch() {
         [graph encodeTrainingBatchToCommandBuffer:commandBuffer
                                      sourceImages:randomTrainBatch
                                        lossStates:lossStateBatch];
-  
-    // Add images to output batch
-    MPSImageBatch *outputBatch = @[];
+
+    NSMutableArray *outputBatch = [NSMutableArray arrayWithCapacity:BATCH_SIZE];
     for (NSUInteger i = 0; i < BATCH_SIZE; i++) {
-
-      // Print each image in the batch
-      // NSLog(@"%@", [lossStateBatch[i] lossImage]);
-
-      outputBatch =
-          [outputBatch arrayByAddingObject:[lossStateBatch[i] lossImage]];
+      [outputBatch addObject:[lossStateBatch[i] lossImage]];
     }
 
     static int iteration = 1;
-    [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull cmdBuf) {
+    [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cmdBuf) {
       dispatch_semaphore_signal(semaphore);
-      NSLog(@"Calling lossReduceSumAcrossBatch");
+
       float trainingLoss = lossReduceSumAcrossBatch(outputBatch);
       NSLog(@"Iteration %d, Training loss = %f\n", iteration, trainingLoss);
+
       iteration++;
 
       NSError *err = cmdBuf.error;
@@ -140,23 +135,22 @@ int main(int argc, const char *argv[]) {
     gCommandQueue = [gDevice newCommandQueue];
     semaphore = dispatch_semaphore_create(2);
     dataset = [[Dataset alloc] initWithDevice:gDevice];
-    graph = [[Graph alloc] init];
+    graph = [[Graph alloc] initWithDevice:gDevice];
 
     id<MTLCommandBuffer> pCmd = nil;
-    for (NSUInteger i = 0; i < TRAIN_ITERATIONS; i++)
+    for (NSUInteger i = 0; i < 10; i++)
       @autoreleasepool {
 
         // Evaluation
         // if ((i % TEST_SET_EVAL_INTERVAL) == 0) {
-          // if (pCmd) {
-            // [pCmd waitUntilCompleted];
-          // }
-          // evaluateTestSet(i);
+        // if (pCmd) {
+        // [pCmd waitUntilCompleted];
+        // }
+        // evaluateTestSet(i);
         // }
 
         // Training
         pCmd = runTrainingIterationBatch();
-
       }
   }
 
