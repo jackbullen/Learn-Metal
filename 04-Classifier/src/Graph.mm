@@ -64,7 +64,7 @@
 
 - (void)initInferenceGraph {
 
-  MPSNNFilterNode *finalNode = [self createNodesWithTraining:YES];
+  MPSNNFilterNode *finalNode = [self createNodesWithTraining:NO];
 
   inferenceGraph = [[MPSNNGraph alloc] initWithDevice:device
                                           resultImage:finalNode.resultImage
@@ -142,7 +142,7 @@
 
 - (MPSImageBatch *)
     encodeTrainingBatchToCommandBuffer:
-        (nonnull id<MTLCommandBuffer>)commandBuffer
+        (id<MTLCommandBuffer>)commandBuffer
                           sourceImages:(MPSImageBatch *)sourceImage
                             lossStates:(MPSCNNLossLabelsBatch *)lossStateBatch {
 
@@ -158,10 +158,9 @@
   return returnImage;
 }
 
-- (MPSImageBatch *)encodeInferenceBatchToCommandBuffer:
-                       (nonnull id<MTLCommandBuffer>)commandBuffer
-                                          sourceImages:
-                                              (MPSImageBatch *)sourceImage {
+- (MPSImageBatch *)
+    encodeInferenceBatchToCommandBuffer:(id<MTLCommandBuffer>)commandBuffer
+                           sourceImages:(MPSImageBatch *)sourceImage {
 
   MPSImageBatch *returnImage =
       [inferenceGraph encodeBatchToCommandBuffer:commandBuffer
@@ -169,6 +168,8 @@
                                     sourceStates:nil
                               intermediateImages:nil
                                destinationStates:nil];
+
+  MPSImageBatchSynchronize(returnImage, commandBuffer);
 
   return returnImage;
 }

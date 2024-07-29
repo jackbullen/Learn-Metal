@@ -60,72 +60,32 @@ id<MTLCommandBuffer> runTrainingIterationBatch() {
   }
 }
 
-void evaluateTestSet(NSUInteger iterations) {
-  @autoreleasepool {
-    gDone = 0;
-    gCorrect = 0;
+void evaluateTestSet() {
+  // Get the image and corresponding label
+  for (int i = 0; i < 10; i++) {
 
-    [graph->inferenceGraph reloadFromDataSources];
+    MPSImage *testImg = dataset->_trainImages[i];
+    NSNumber *testLabel = dataset->_trainLabels[i];
+    // NSLog(@"testImg = %@", testImg);
+    // NSLog(@"testLabel = %@", testLabel);
 
-    MPSImageDescriptor *inputDesc = [MPSImageDescriptor
-        imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatUnorm8
-                                   width:IMAGE_WIDTH
-                                  height:IMAGE_HEIGHT
-                         featureChannels:1
-                          numberOfImages:1
-                                   usage:MTLTextureUsageShaderRead];
+    // Prepare inference
+    // [graph->inferenceGraph reloadFromDataSources];
+    MPSCommandBuffer *commandBuffer =
+        [MPSCommandBuffer commandBufferFromCommandQueue:gCommandQueue];
 
-    MPSCommandBuffer *lastcommandBuffer = nil;
+    MPSImage *outputImage =
+        [graph->inferenceGraph encodeToCommandBuffer:commandBuffer
+                                        sourceImages:@[ testImg ]];
 
-    for (NSUInteger currImageIdx = 0; currImageIdx < dataset->_nTest;
-         currImageIdx += BATCH_SIZE)
-      @autoreleasepool {
+    [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
+      int pred =
+          checkDigitLabel<IMAGE_T>(outputImage, [testLabel unsignedCharValue]);
+      printf("%d =? %d\n", [testLabel unsignedIntValue], pred);
+    }];
 
-        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-
-        MPSImageBatch *inputBatch = @[];
-        for (NSUInteger i = 0; i < BATCH_SIZE; i++) {
-          MPSImage *inputImage = [[MPSImage alloc] initWithDevice:gDevice
-                                                  imageDescriptor:inputDesc];
-
-          inputBatch = [inputBatch arrayByAddingObject:inputImage];
-        }
-
-        MPSCommandBuffer *commandBuffer =
-            [MPSCommandBuffer commandBufferFromCommandQueue:gCommandQueue];
-
-        [inputBatch
-            enumerateObjectsUsingBlock:^(MPSImage *_Nonnull inputImage,
-                                         NSUInteger idx, BOOL *_Nonnull stop) {
-              [inputImage writeBytes:dataset->_testImages[currImageIdx]
-                          dataLayout:MPSDataLayoutHeightxWidthxFeatureChannels
-                          imageIndex:0];
-            }];
-
-        MPSImageBatch *outputBatch =
-            [graph encodeInferenceBatchToCommandBuffer:commandBuffer
-                                          sourceImages:inputBatch];
-
-        MPSImageBatchSynchronize(outputBatch, commandBuffer);
-
-        [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
-          dispatch_semaphore_signal(semaphore);
-
-          [outputBatch enumerateObjectsUsingBlock:^(
-                           MPSImage *_Nonnull outputImage, NSUInteger idx,
-                           BOOL *_Nonnull stop) {
-            uint8_t label =
-                [dataset->_testLabels[currImageIdx] unsignedCharValue];
-            checkDigitLabel<IMAGE_T>(outputImage, label);
-          }];
-        }];
-
-        [commandBuffer commit];
-        lastcommandBuffer = commandBuffer;
-      }
-
-    NSLog(@"Test Set Accuracy = %f %f", (float)gCorrect,
-          (float)dataset->_nTrain);
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
   }
 }
 
@@ -136,24 +96,20 @@ int main(int argc, const char *argv[]) {
     semaphore = dispatch_semaphore_create(2);
     dataset = [[Dataset alloc] initWithDevice:gDevice];
     graph = [[Graph alloc] initWithDevice:gDevice];
+    // Before training loop
+    NSLog(@"%f", ((float *)[graph->conv1Wts weights])[0]);
 
+    // Training
     id<MTLCommandBuffer> pCmd = nil;
-    for (NSUInteger i = 0; i < 10; i++)
+    for (NSUInteger i = 0; i < TRAIN_ITERATIONS; i++)
       @autoreleasepool {
-
-        // Evaluation
-        // if ((i % TEST_SET_EVAL_INTERVAL) == 0) {
-        // if (pCmd) {
-        // [pCmd waitUntilCompleted];
-        // }
-        // evaluateTestSet(i);
-        // }
-
-        // Training
         pCmd = runTrainingIterationBatch();
       }
+    // NSLog(@"Initial model parameters: %@", [graph->conv1Wts weights]);
+    // Evaluation
+    NSLog(@"%f", ((float *)[graph->conv1Wts weights])[0]);
+    // evaluateTestSet();
   }
 
-  // Final evaluation
-  // evaluateTestSet(TRAIN_ITERATIONS);
+  return 0;
 }

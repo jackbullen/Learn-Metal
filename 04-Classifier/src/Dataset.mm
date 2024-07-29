@@ -36,7 +36,7 @@
 
   NSMutableArray<MPSImage *> *images = [NSMutableArray array];
 
-  for (NSUInteger i = 0; i < 32; i++) {
+  for (NSUInteger i = 0; i < 1000; i++) {
     const unsigned char *imageBytes =
         (const unsigned char *)[fileData bytes] + i * IMAGE_BYTES;
 

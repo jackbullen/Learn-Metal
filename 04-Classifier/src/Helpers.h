@@ -7,7 +7,7 @@ extern NSUInteger Help, gCorrect, gDone;
 
 float lossReduceSumAcrossBatch(MPSImageBatch *batch);
 
-template <typename T> void checkDigitLabel(MPSImage *image, uint8_t label) {
+template <typename T> int checkDigitLabel(MPSImage *image, uint8_t label) {
 
   assert(image.numberOfImages == 1);
 
@@ -23,7 +23,21 @@ template <typename T> void checkDigitLabel(MPSImage *image, uint8_t label) {
   int index = -1;
 
   [image readBytes:vals
-        dataLayout:(MPSDataLayoutHeightxWidthxFeatureChannels)imageIndex:0];
+        dataLayout:(MPSDataLayoutFeatureChannelsxHeightxWidth)imageIndex:0];
+
+  // Print raw values to debug
+  for (NSUInteger i = 0; i < image.featureChannels; i++) {
+    NSLog(@"Feature Channel %lu:", (unsigned long)i);
+    for (NSUInteger j = 0; j < image.height; j++) {
+      for (NSUInteger k = 0; k < image.width; k++) {
+        T value = vals[(i * image.height + j) * image.width + k];
+        NSLog(@"Value at (%lu, %lu, %lu): %f", (unsigned long)i,
+              (unsigned long)j, (unsigned long)k, value);
+      }
+    }
+  }
+
+  // NSLog(@"%@", [image debugDescription]);
 
   for (NSUInteger i = 0; i < (NSUInteger)image.featureChannels; i++) {
     for (NSUInteger j = 0; j < image.height; j++) {
@@ -42,6 +56,7 @@ template <typename T> void checkDigitLabel(MPSImage *image, uint8_t label) {
 
   gDone++;
   free(vals);
+  return index;
 }
 
 #endif
