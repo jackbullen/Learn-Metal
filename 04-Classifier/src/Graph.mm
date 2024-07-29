@@ -2,7 +2,7 @@
 
 @implementation Graph
 
-- (nonnull instancetype)initWithDevice:(nonnull id<MTLDevice>)inputDevice {
+- (instancetype)initWithDevice:(id<MTLDevice>)inputDevice {
   self = [super init];
   device = inputDevice;
 
@@ -73,7 +73,7 @@
   inferenceGraph.format = fcFormat;
 }
 
-- (nonnull MPSNNFilterNode *)createNodesWithTraining:(BOOL)isTraining {
+- (MPSNNFilterNode *)createNodesWithTraining:(BOOL)isTraining {
 
   MPSCNNConvolutionNode *conv1Node =
       [MPSCNNConvolutionNode nodeWithSource:[MPSNNImageNode nodeWithHandle:nil]
@@ -140,10 +140,10 @@
   }
 }
 
-- (MPSImageBatch *__nullable)
+- (MPSImageBatch *)
     encodeTrainingBatchToCommandBuffer:
         (nonnull id<MTLCommandBuffer>)commandBuffer
-                          sourceImages:(MPSImageBatch *__nonnull)sourceImage
+                          sourceImages:(MPSImageBatch *)sourceImage
                             lossStates:(MPSCNNLossLabelsBatch *)lossStateBatch {
 
   MPSImageBatch *returnImage =
@@ -158,10 +158,10 @@
   return returnImage;
 }
 
-- (MPSImageBatch *__nullable)
-    encodeInferenceBatchToCommandBuffer:
-        (nonnull id<MTLCommandBuffer>)commandBuffer
-                           sourceImages:(MPSImageBatch *__nonnull)sourceImage {
+- (MPSImageBatch *)encodeInferenceBatchToCommandBuffer:
+                       (nonnull id<MTLCommandBuffer>)commandBuffer
+                                          sourceImages:
+                                              (MPSImageBatch *)sourceImage {
 
   MPSImageBatch *returnImage =
       [inferenceGraph encodeBatchToCommandBuffer:commandBuffer

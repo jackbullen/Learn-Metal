@@ -1,5 +1,5 @@
 CC := clang++
-CFLAGS := -Wall -std=c++17 -I../metal-cpp -I../metal-cpp-extensions -fno-objc-arc
+CFLAGS := -Wall -std=c++17 -I../metal-cpp -I../metal-cpp-extensions -fno-objc-arc -Wno-nullability-completeness
 LDFLAGS := -framework Metal -framework MetalKit -framework CoreGraphics -framework AppKit -framework MetalPerformanceShaders
 
 SRCS := $(wildcard src/*.mm)

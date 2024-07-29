@@ -4,12 +4,12 @@
 
 @implementation ConvDataSource
 
-- (nonnull instancetype)initWithKernelWidth:(NSUInteger)kernelWidth
+- (instancetype)initWithKernelWidth:(NSUInteger)kernelWidth
                                kernelHeight:(NSUInteger)kernelHeight
                        inputFeatureChannels:(NSUInteger)inputFeatureChannels
                       outputFeatureChannels:(NSUInteger)outputFeatureChannels
                                      stride:(NSUInteger)stride
-                                      label:(NSString *__nonnull)label {
+                                      label:(NSString *)label {
   self = [super init];
   if (!self) {
     return nil;
@@ -132,13 +132,13 @@
 - (MPSDataType)dataType {
   return MPSDataTypeFloat32;
 }
-- (MPSCNNConvolutionDescriptor *__nonnull)descriptor {
+- (MPSCNNConvolutionDescriptor *)descriptor {
   return _convDesc;
 }
-- (void *__nonnull)weights {
+- (void *)weights {
   return _weightPointer;
 }
-- (float *__nullable)biasTerms {
+- (float *)biasTerms {
   return _biasPointer;
 };
 
@@ -150,11 +150,11 @@
 - (void)purge {
 };
 
-- (MPSCNNConvolutionWeightsAndBiasesState *__nullable)
-    updateWithCommandBuffer:(__nonnull id<MTLCommandBuffer>)commandBuffer
+- (MPSCNNConvolutionWeightsAndBiasesState *)
+    updateWithCommandBuffer:( id<MTLCommandBuffer>)commandBuffer
               gradientState:
-                  (MPSCNNConvolutionGradientState *__nonnull)gradientState
-                sourceState:(MPSCNNConvolutionWeightsAndBiasesState *__nonnull)
+                  (MPSCNNConvolutionGradientState *)gradientState
+                sourceState:(MPSCNNConvolutionWeightsAndBiasesState *)
                                 sourceState {
 
   _t++;
@@ -172,7 +172,7 @@
   return _convWtsAndBias;
 }
 
-- (void)checkpointWithCommandQueue:(nonnull id<MTLCommandQueue>)commandQueue {
+- (void)checkpointWithCommandQueue:(id<MTLCommandQueue>)commandQueue {
   @autoreleasepool {
     MPSCommandBuffer *commandBuffer =
         [MPSCommandBuffer commandBufferFromCommandQueue:gCommandQueue];
@@ -182,11 +182,11 @@
   }
 }
 
-- (NSString *_Nullable)label {
+- (NSString *)label {
   return _label;
 }
 
-- (nonnull id)copyWithZone:(nullable NSZone *)zone {
+- (nonnull id)copyWithZone:(NSZone *)zone {
   /* unimplemented */
   return self;
 }

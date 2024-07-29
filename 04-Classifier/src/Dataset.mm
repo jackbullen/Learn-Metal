@@ -2,18 +2,22 @@
 
 @implementation Dataset
 
-- (nullable instancetype)init {
+- (instancetype)initWithDevice:(id<MTLDevice>)device {
 
   self = [super init];
-  if (self == nil)
-    return self;
-
+  if (self) {
+    _device = device;
+    _trainImages = [self loadMNISTImagesFromFile:@"mnist/train_images.mnist"];
+    _trainLabels = [self loadMNISTLabelsFrom:@"mnist/train_labels.mnist"];
+    _testImages = [self loadMNISTImagesFromFile:@"mnist/test_images.mnist"];
+    _testLabels = [self loadMNISTLabelsFrom:@"mnist/test_labels.mnist"];
+    _nTrain = _trainImages.count;
+    _nTest = _testImages.count;
+  }
   return self;
 }
 
-- (nullable NSArray<MPSImage *> *)
-    loadMNISTImagesWithDevice:(id<MTLDevice>)device
-                     fromFile:(NSString *)filepath {
+- (NSArray<MPSImage *> *)loadMNISTImagesFromFile:(NSString *)filepath {
 
   NSFileManager *fileManager = [NSFileManager defaultManager];
   if (![fileManager fileExistsAtPath:filepath]) {
@@ -42,7 +46,7 @@
                                   height:IMAGE_HEIGHT
                          featureChannels:1];
 
-    MPSImage *image = [[MPSImage alloc] initWithDevice:device
+    MPSImage *image = [[MPSImage alloc] initWithDevice:_device
                                        imageDescriptor:imageDesc];
 
     [image writeBytes:imageBytes
@@ -55,7 +59,7 @@
   return images;
 }
 
-- (nullable NSArray<NSNumber *> *)loadMNISTLabelsFrom:(NSString *)filepath {
+- (NSArray<NSNumber *> *)loadMNISTLabelsFrom:(NSString *)filepath {
   NSFileManager *fileManager = [NSFileManager defaultManager];
   if (![fileManager fileExistsAtPath:filepath]) {
     NSLog(@"File does not exist");
@@ -79,47 +83,23 @@
     [labels addObject:@(label)];
   }
 
-  return [labels copy];
+  return labels;
 }
 
-- (nullable MPSImageBatch *)
+- (MPSImageBatch *)
     getRandomTrainingBatchWithDevice:(id<MTLDevice>)device
                            batchSize:(NSUInteger)batchSize
                       lossStateBatch:(MPSCNNLossLabelsBatch **)lossStateBatch {
-
-  // Load Images
-  // could be expensive loading all images into MPSImage,
-  // and only use the batchSize few of them that are randomly selected
-  // instead should do something similar to sample code (just make MPSImages for
-  // the desired images...)
-  NSArray<MPSImage *> *trainImages =
-      [self loadMNISTImagesWithDevice:device
-                             fromFile:@"mnist/train_images.mnist"];
-  if (!trainImages) {
-    NSLog(@"Failed to load training images");
-    assert(false);
-  }
-
-  // Load Labels
-  NSArray<NSNumber *> *trainLabels =
-      [self loadMNISTLabelsFrom:@"mnist/train_labels.mnist"];
-  if (!trainLabels) {
-    NSLog(@"Failed to load training labels");
-    assert(false);
-  }
-
-  // Create the batch
-
   MPSImageBatch *trainBatch = @[];
 
   NSMutableArray<MPSCNNLossLabels *> *lossStateBatchOut =
       [NSMutableArray array];
 
   for (NSUInteger i = 0; i < batchSize; i++) {
-    NSUInteger randomIdx = arc4random_uniform((uint32_t)trainImages.count);
+    NSUInteger randomIdx = arc4random_uniform(_nTrain);
 
-    MPSImage *image = trainImages[randomIdx];
-    NSNumber *label = trainLabels[randomIdx];
+    MPSImage *image = _trainImages[randomIdx];
+    NSNumber *label = _trainLabels[randomIdx];
 
     trainBatch = [trainBatch arrayByAddingObject:image];
 
@@ -134,6 +114,7 @@
     MPSCNNLossLabels *lossState =
         [[MPSCNNLossLabels alloc] initWithDevice:device
                                 labelsDescriptor:labelsDesc];
+                           
     [lossStateBatchOut addObject:lossState];
   }
 

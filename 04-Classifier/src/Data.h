@@ -59,28 +59,27 @@ static MPSNNDefaultPadding *_Nonnull validPoolingPadding =
   MPSCNNConvolutionWeightsAndBiasesState *_convWtsAndBias;
 }
 
-- (nonnull instancetype)initWithKernelWidth:(NSUInteger)kernelWidth
-                               kernelHeight:(NSUInteger)kernelHeight
-                       inputFeatureChannels:(NSUInteger)inputFeatureChannels
-                      outputFeatureChannels:(NSUInteger)outputFeatureChannels
-                                     stride:(NSUInteger)stride
-                                      label:(NSString *__nonnull)label;
+- (instancetype)initWithKernelWidth:(NSUInteger)kernelWidth
+                       kernelHeight:(NSUInteger)kernelHeight
+               inputFeatureChannels:(NSUInteger)inputFeatureChannels
+              outputFeatureChannels:(NSUInteger)outputFeatureChannels
+                             stride:(NSUInteger)stride
+                              label:(NSString *)label;
 
 - (MPSDataType)dataType;
-- (MPSCNNConvolutionDescriptor *__nonnull)descriptor;
-- (void *__nonnull)weights;
-- (float *__nullable)biasTerms;
+- (MPSCNNConvolutionDescriptor *)descriptor;
+- (void *)weights;
+- (float *)biasTerms;
 - (BOOL)load;
 - (void)purge;
 
-- (MPSCNNConvolutionWeightsAndBiasesState *__nullable)
-    updateWithCommandBuffer:(__nonnull id<MTLCommandBuffer>)commandBuffer
-              gradientState:
-                  (MPSCNNConvolutionGradientState *__nonnull)gradientState
-                sourceState:(MPSCNNConvolutionWeightsAndBiasesState *__nonnull)
-                                sourceState;
+- (MPSCNNConvolutionWeightsAndBiasesState *)
+    updateWithCommandBuffer:(id<MTLCommandBuffer>)commandBuffer
+              gradientState:(MPSCNNConvolutionGradientState *)gradientState
+                sourceState:
+                    (MPSCNNConvolutionWeightsAndBiasesState *)sourceState;
 
-- (void)checkpointWithCommandQueue:(nonnull id<MTLCommandQueue>)commandQueue;
+- (void)checkpointWithCommandQueue:(id<MTLCommandQueue>)commandQueue;
 
 @end
 

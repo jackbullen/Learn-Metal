@@ -15,29 +15,33 @@
 
 @interface Dataset : NSObject {
 @public
-  NSUInteger totalNumberOfTrainImages;
-  uint8_t *trainImagePointer, *trainLabelPointer;
-  size_t sizeTrainLabels, sizeTrainImages;
+
+  id<MTLDevice> _device;
+
+  NSArray<MPSImage *> *_trainImages;
+  NSArray<NSNumber *> *_trainLabels;
+  NSArray<MPSImage *> *_testImages;
+  NSArray<NSNumber *> *_testLabels;
+  NSUInteger _nTrain;
+  NSUInteger _nTest;
+
+  // Old
+
   NSData *dataTrainImage;
   NSData *dataTrainLabel;
 
-  NSUInteger totalNumberOfTestImages;
-  uint8_t *testImagePointer, *testLabelPointer;
-  size_t sizeTestLabels, sizeTestImages;
   NSData *dataTestImage;
   NSData *dataTestLabel;
 
   unsigned seed;
 }
 
-- (nullable instancetype)init;
-
-- (nullable MPSImageBatch *)
-    getRandomTrainingBatchWithDevice:(id<MTLDevice> _Nonnull)device
-                           batchSize:(NSUInteger)batchSize
-                      lossStateBatch:
-                          (MPSCNNLossLabelsBatch *__nonnull *__nullable)
-                              lossStateBatch;
+- (instancetype)initWithDevice:(id<MTLDevice>)device;
+- (NSArray<MPSImage *> *)loadMNISTImagesFromFile:(NSString *)filepath;
+- (MPSImageBatch *)getRandomTrainingBatchWithDevice:(id<MTLDevice>)device
+                                          batchSize:(NSUInteger)batchSize
+                                     lossStateBatch:(MPSCNNLossLabelsBatch **)
+                                                        lossStateBatch;
 
 @end
 

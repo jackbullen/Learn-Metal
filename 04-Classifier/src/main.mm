@@ -30,16 +30,22 @@ id<MTLCommandBuffer> runTrainingIterationBatch() {
         [graph encodeTrainingBatchToCommandBuffer:commandBuffer
                                      sourceImages:randomTrainBatch
                                        lossStates:lossStateBatch];
-
+  
+    // Add images to output batch
     MPSImageBatch *outputBatch = @[];
     for (NSUInteger i = 0; i < BATCH_SIZE; i++) {
+
+      // Print each image in the batch
+      // NSLog(@"%@", [lossStateBatch[i] lossImage]);
+
       outputBatch =
           [outputBatch arrayByAddingObject:[lossStateBatch[i] lossImage]];
     }
+
     static int iteration = 1;
     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull cmdBuf) {
       dispatch_semaphore_signal(semaphore);
-
+      NSLog(@"Calling lossReduceSumAcrossBatch");
       float trainingLoss = lossReduceSumAcrossBatch(outputBatch);
       NSLog(@"Iteration %d, Training loss = %f\n", iteration, trainingLoss);
       iteration++;
@@ -76,8 +82,7 @@ void evaluateTestSet(NSUInteger iterations) {
 
     MPSCommandBuffer *lastcommandBuffer = nil;
 
-    for (NSUInteger currImageIdx = 0;
-         currImageIdx < dataset->totalNumberOfTestImages;
+    for (NSUInteger currImageIdx = 0; currImageIdx < dataset->_nTest;
          currImageIdx += BATCH_SIZE)
       @autoreleasepool {
 
@@ -87,23 +92,20 @@ void evaluateTestSet(NSUInteger iterations) {
         for (NSUInteger i = 0; i < BATCH_SIZE; i++) {
           MPSImage *inputImage = [[MPSImage alloc] initWithDevice:gDevice
                                                   imageDescriptor:inputDesc];
+
           inputBatch = [inputBatch arrayByAddingObject:inputImage];
         }
 
         MPSCommandBuffer *commandBuffer =
             [MPSCommandBuffer commandBufferFromCommandQueue:gCommandQueue];
 
-        [inputBatch enumerateObjectsUsingBlock:^(MPSImage *_Nonnull inputImage,
-                                                 NSUInteger idx,
-                                                 BOOL *_Nonnull stop) {
-          uint8_t *start =
-              ADVANCE_PTR(dataset->testImagePointer,
-                          (IMAGE_WIDTH * IMAGE_HEIGHT * (currImageIdx + idx)));
-          [inputImage
-              writeBytes:start
-              dataLayout:(MPSDataLayoutHeightxWidthxFeatureChannels)imageIndex
-                        :0];
-        }];
+        [inputBatch
+            enumerateObjectsUsingBlock:^(MPSImage *_Nonnull inputImage,
+                                         NSUInteger idx, BOOL *_Nonnull stop) {
+              [inputImage writeBytes:dataset->_testImages[currImageIdx]
+                          dataLayout:MPSDataLayoutHeightxWidthxFeatureChannels
+                          imageIndex:0];
+            }];
 
         MPSImageBatch *outputBatch =
             [graph encodeInferenceBatchToCommandBuffer:commandBuffer
@@ -117,9 +119,9 @@ void evaluateTestSet(NSUInteger iterations) {
           [outputBatch enumerateObjectsUsingBlock:^(
                            MPSImage *_Nonnull outputImage, NSUInteger idx,
                            BOOL *_Nonnull stop) {
-            uint8_t *labelStart =
-                ADVANCE_PTR(dataset->testLabelPointer, currImageIdx + idx);
-            checkDigitLabel<IMAGE_T>(outputImage, labelStart);
+            uint8_t label =
+                [dataset->_testLabels[currImageIdx] unsignedCharValue];
+            checkDigitLabel<IMAGE_T>(outputImage, label);
           }];
         }];
 
@@ -127,9 +129,8 @@ void evaluateTestSet(NSUInteger iterations) {
         lastcommandBuffer = commandBuffer;
       }
 
-    [lastcommandBuffer waitUntilCompleted];
     NSLog(@"Test Set Accuracy = %f %f", (float)gCorrect,
-          (float)dataset->totalNumberOfTrainImages);
+          (float)dataset->_nTrain);
   }
 }
 
@@ -138,22 +139,27 @@ int main(int argc, const char *argv[]) {
     gDevice = MTLCreateSystemDefaultDevice();
     gCommandQueue = [gDevice newCommandQueue];
     semaphore = dispatch_semaphore_create(2);
-    dataset = [[Dataset alloc] init];
+    dataset = [[Dataset alloc] initWithDevice:gDevice];
     graph = [[Graph alloc] init];
-    MPSCNNLossLabelsBatch *lossStateBatch = nil;
 
     id<MTLCommandBuffer> pCmd = nil;
     for (NSUInteger i = 0; i < TRAIN_ITERATIONS; i++)
       @autoreleasepool {
-        if ((i % TEST_SET_EVAL_INTERVAL) == 0) {
-          if (pCmd) {
-            [pCmd waitUntilCompleted];
-          }
-          evaluateTestSet(i);
-        }
+
+        // Evaluation
+        // if ((i % TEST_SET_EVAL_INTERVAL) == 0) {
+          // if (pCmd) {
+            // [pCmd waitUntilCompleted];
+          // }
+          // evaluateTestSet(i);
+        // }
+
+        // Training
+        pCmd = runTrainingIterationBatch();
+
       }
-    pCmd = runTrainingIterationBatch();
   }
 
-  evaluateTestSet(TRAIN_ITERATIONS);
+  // Final evaluation
+  // evaluateTestSet(TRAIN_ITERATIONS);
 }

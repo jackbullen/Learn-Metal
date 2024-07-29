@@ -12,19 +12,16 @@
   MPSNNGraph *trainGraph, *inferenceGraph;
 }
 
-- (nonnull instancetype)initWithDevice:(nonnull id<MTLDevice>)device;
+- (instancetype)initWithDevice:(id<MTLDevice>)device;
 - (void)initInferenceGraph;
-- (nonnull MPSNNFilterNode *)createNodesWithTraining:(BOOL)isTraining;
-- (MPSImageBatch *__nullable)
-    encodeInferenceBatchToCommandBuffer:
-        (nonnull id<MTLCommandBuffer>)commandBuffer
-                           sourceImages:(MPSImageBatch *__nonnull)sourceImage;
-- (MPSImageBatch *__nullable)
-    encodeTrainingBatchToCommandBuffer:
-        (nonnull id<MTLCommandBuffer>)commandBuffer
-                          sourceImages:(MPSImageBatch *__nonnull)sourceImage
-                            lossStates:(MPSCNNLossLabelsBatch *__nonnull)
-                                           lossStateBatch;
+- (MPSNNFilterNode *)createNodesWithTraining:(BOOL)isTraining;
+- (MPSImageBatch *)
+    encodeInferenceBatchToCommandBuffer:(id<MTLCommandBuffer>)commandBuffer
+                           sourceImages:(MPSImageBatch *)sourceImage;
+- (MPSImageBatch *)
+    encodeTrainingBatchToCommandBuffer:(id<MTLCommandBuffer>)commandBuffer
+                          sourceImages:(MPSImageBatch *)sourceImage
+                            lossStates:(MPSCNNLossLabelsBatch *)lossStateBatch;
 
 @end
 

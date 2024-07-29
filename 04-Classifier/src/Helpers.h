@@ -5,10 +5,9 @@
 
 extern NSUInteger Help, gCorrect, gDone;
 
-float lossReduceSumAcrossBatch(MPSImageBatch *_Nonnull batch);
+float lossReduceSumAcrossBatch(MPSImageBatch *batch);
 
-template <typename T>
-void checkDigitLabel(MPSImage *_Nonnull image, uint8_t *_Nonnull labelStart) {
+template <typename T> void checkDigitLabel(MPSImage *image, uint8_t label) {
 
   assert(image.numberOfImages == 1);
 
@@ -38,7 +37,7 @@ void checkDigitLabel(MPSImage *_Nonnull image, uint8_t *_Nonnull labelStart) {
     }
   }
 
-  if (index == labelStart[0])
+  if (index == label)
     gCorrect++;
 
   gDone++;
