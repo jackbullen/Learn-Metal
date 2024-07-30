@@ -12,6 +12,7 @@
   id<MTLDepthStencilState> _pDepthStencilState;
   id<MTLTexture> _pTexture;
   float _angle;
+  float _loc[3];
   int _currKey;
 }
 @end
@@ -23,6 +24,11 @@
   if (self) {
     _pDevice = device;
     _pCommandQueue = [_pDevice newCommandQueue];
+    _angle = 0;
+    _loc[0] = 0.f;
+    _loc[1] = 0.f;
+    _loc[2] = -10.f;
+    _currKey = -1;
     [self buildShaders];
     [self buildTextures];
     [self buildBuffers];
@@ -185,17 +191,23 @@
 - (void)draw:(MTKView *)pView {
   @autoreleasepool {
 
-    if (_currKey == 124) {
-      _angle += 0.01f;
-    } else if (_currKey == 123) {
-      _angle -= 0.01f;
+    if (_currKey == 2) {
+      _loc[0] += 0.1f;
+    } else if (_currKey == 0) {
+      _loc[0] -= 0.1f;
+    } else if (_currKey == 13) {
+      _loc[1] += 0.1f;
+    } else if (_currKey == 1) {
+      _loc[1] -= 0.1f;
+    } else if (_currKey == 49) {
+      _loc[2] += 0.5f; // lol
     }
 
-    simd_float3 pos = {0.f, 0.f, -5.f};
+    simd_float3 pos = {_loc[0], _loc[1], _loc[2]};
 
     struct CameraData *pCameraData = [_pCameraDataBuffer contents];
     pCameraData->transform =
-        matrix_multiply(makeTranslate(pos), makeYRotate(_angle));
+        matrix_multiply(makeTranslate(pos), makeZRotate(_angle));
     pCameraData->normalTransform = chopMat(pCameraData->transform);
     pCameraData->perspective =
         makePerspective(45.f * M_PI / 180.f, 1.f, 0.03f, 500.0f);
