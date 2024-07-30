@@ -2,27 +2,33 @@
 
 @implementation MTKViewDelegate
 
-- (instancetype)initWithDevice:(id<MTLDevice>)device
-{
-    self = [super init];
-    if (self) 
-    {
-        _renderer = [[Renderer alloc] initWithDevice:device];
-    }
-    return self;
+- (instancetype)initWithDevice:(id<MTLDevice>)device {
+  self = [super init];
+  if (self) {
+    _renderer = [[Renderer alloc] initWithDevice:device];
+  }
+  return self;
 }
 
-- (void)dealloc 
-{
-    [_renderer release];
-    [super dealloc];
+- (void)dealloc {
+  [_renderer release];
+  [super dealloc];
 }
 
-- (void)drawInMTKView:(MTKView *)view 
-{
-    [self.renderer draw:view];
+- (void)keyDownEvent:(NSEvent *)event {
+  NSLog(@"%d", event.keyCode);
+  [_renderer keyDownEvent:event];
 }
 
--(void)mtkView:(MTKView *)view drawableSizeWillChange:(CGSize)size {}
+- (void)keyUpEvent:(NSEvent *)event {
+  [_renderer keyUpEvent:event];
+}
 
-@end 
+- (void)drawInMTKView:(MTKView *)view {
+  [self.renderer draw:view];
+}
+
+- (void)mtkView:(MTKView *)view drawableSizeWillChange:(CGSize)size {
+}
+
+@end

@@ -12,6 +12,7 @@
   id<MTLDepthStencilState> _pDepthStencilState;
   id<MTLTexture> _pTexture;
   float _angle;
+  int _currKey;
 }
 @end
 
@@ -171,9 +172,24 @@
                             options:MTLResourceStorageModeManaged];
 }
 
+- (void)keyDownEvent:(NSEvent *)event {
+  NSLog(@"Renderer received key down event: %d", (int)event.keyCode);
+  _currKey = (int)event.keyCode;
+}
+
+- (void)keyUpEvent:(NSEvent *)event {
+  NSLog(@"Renderer received key up event: %d", (int)event.keyCode);
+  _currKey = -1; // assumes only one key is pressed at a time
+}
+
 - (void)draw:(MTKView *)pView {
   @autoreleasepool {
-    _angle += 0.01f;
+
+    if (_currKey == 124) {
+      _angle += 0.01f;
+    } else if (_currKey == 123) {
+      _angle -= 0.01f;
+    }
 
     simd_float3 pos = {0.f, 0.f, -5.f};
 
