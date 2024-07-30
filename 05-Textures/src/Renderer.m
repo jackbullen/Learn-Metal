@@ -99,62 +99,134 @@
     [pDsDesc release];
 }
 
+- (NSArray<MPSImage *> *)loadMNISTImagesFromFile:(NSString *)filepath {
+
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  if (![fileManager fileExistsAtPath:filepath]) {
+    NSLog(@"File does not exist");
+    assert(false);
+  }
+
+  NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:filepath];
+  if (!fileHandle) {
+    NSLog(@"Failed to open file");
+    assert(false);
+  }
+
+  NSData *fileData = [fileHandle readDataToEndOfFile];
+  [fileHandle closeFile];
+
+  NSMutableArray<MPSImage *> *images = [NSMutableArray array];
+
+  for (NSUInteger i = 0; i < 1000; i++) {
+    const unsigned char *imageBytes =
+        (const unsigned char *)[fileData bytes] + i * IMAGE_BYTES;
+
+    MPSImageDescriptor *imageDesc = [MPSImageDescriptor
+        imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatUnorm8
+                                   width:IMAGE_WIDTH
+                                  height:IMAGE_HEIGHT
+                         featureChannels:1];
+
+    MPSImage *image = [[MPSImage alloc] initWithDevice:_pDevice
+                                       imageDescriptor:imageDesc];
+
+    [image writeBytes:imageBytes
+           dataLayout:MPSDataLayoutHeightxWidthxFeatureChannels
+           imageIndex:0];
+
+    [images addObject:image];
+  }
+
+  return images;
+}
+
+- (NSArray<NSNumber *> *)loadMNISTLabelsFrom:(NSString *)filepath {
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  if (![fileManager fileExistsAtPath:filepath]) {
+    NSLog(@"File does not exist");
+    assert(false);
+  }
+
+  NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:filepath];
+  if (!fileHandle) {
+    NSLog(@"File failed to be opened");
+    assert(false);
+  }
+
+  NSData *fileData = [fileHandle readDataToEndOfFile];
+  [fileHandle closeFile];
+
+  const unsigned char *labelBytes = (const unsigned char *)[fileData bytes];
+  NSMutableArray<NSNumber *> *labels =
+      [NSMutableArray arrayWithCapacity:1000];
+  for (NSUInteger i = 0; i < 1000; i++) {
+    unsigned char label = labelBytes[i];
+    [labels addObject:@(label)];
+  }
+
+  return labels;
+}
+
 - (void)buildTextures 
 {
     NSFileManager *fileManager = [NSFileManager defaultManager];
 
     // Log the label for the first image
 
-    NSString *labelsFilepath = @"train_labels.mnist";
-    if (![fileManager fileExistsAtPath:labelsFilepath])
-    {
-        NSLog(@"Labels file does not exist at %@.", labelsFilepath);
-        assert(false);
-    }
+    // NSString *labelsFilepath = @"train_labels.mnist";
+    // if (![fileManager fileExistsAtPath:labelsFilepath])
+    // {
+    //     NSLog(@"Labels file does not exist at %@.", labelsFilepath);
+    //     assert(false);
+    // }
 
-    NSFileHandle *labelsFileHandle = [NSFileHandle fileHandleForReadingAtPath:labelsFilepath];
-    if (!labelsFileHandle)
-    {
-        NSLog(@"Failed to open labels");
-        assert(false);
-    }
+    // NSFileHandle *labelsFileHandle = [NSFileHandle fileHandleForReadingAtPath:labelsFilepath];
+    // if (!labelsFileHandle)
+    // {
+    //     NSLog(@"Failed to open labels");
+    //     assert(false);
+    // }
 
-    NSData *labelsData = [labelsFileHandle readDataOfLength:1];
-    NSLog(@"First train label is %d.", ((const unsigned char *)[labelsData bytes])[0]);
+    // NSData *labelsData = [labelsFileHandle readDataOfLength:1];
+    // NSLog(@"First train label is %d.", ((const unsigned char *)[labelsData bytes])[0]);
 
     // Load the first image to texture
 
-    NSString *imagesFilepath = @"train_images.mnist";
-    if (![fileManager fileExistsAtPath:imagesFilepath]) 
-    {
-        NSLog(@"File does not exist");
-        assert(false);
-    }
+    // NSString *imagesFilepath = @"train_images.mnist";
+    // if (![fileManager fileExistsAtPath:imagesFilepath]) 
+    // {
+    //     NSLog(@"File does not exist");
+    //     assert(false);
+    // }
 
-    NSFileHandle *imagesFileHandle = [NSFileHandle fileHandleForReadingAtPath:imagesFilepath];
-    if (!imagesFileHandle) 
-    {
-        NSLog(@"Failed to open images");
-        assert(false);
-    }
+    // NSFileHandle *imagesFileHandle = [NSFileHandle fileHandleForReadingAtPath:imagesFilepath];
+    // if (!imagesFileHandle) 
+    // {
+    //     NSLog(@"Failed to open images");
+    //     assert(false);
+    // }
 
-    NSData *fileData = [imagesFileHandle readDataToEndOfFile];
-    [imagesFileHandle closeFile];
+    // NSData *fileData = [imagesFileHandle readDataToEndOfFile];
+    // [imagesFileHandle closeFile];
 
-    const unsigned char *imageBytes = (const unsigned char *)[fileData bytes];
+    // const unsigned char *imageBytes = (const unsigned char *)[fileData bytes];
 
-    MPSImageDescriptor *imageDesc = [MPSImageDescriptor
-        imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatUnorm8
-                                    width:IMAGE_WIDTH
-                                    height:IMAGE_HEIGHT
-                            featureChannels:1];
+    // MPSImageDescriptor *imageDesc = [MPSImageDescriptor
+    //     imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatUnorm8
+    //                                 width:IMAGE_WIDTH
+    //                                 height:IMAGE_HEIGHT
+    //                         featureChannels:1];
 
-    MPSImage *image = [[MPSImage alloc] initWithDevice:_pDevice
-                                        imageDescriptor:imageDesc];
+    // MPSImage *image = [[MPSImage alloc] initWithDevice:_pDevice
+    //                                     imageDescriptor:imageDesc];
 
-    [image writeBytes:imageBytes
-            dataLayout:MPSDataLayoutHeightxWidthxFeatureChannels
-            imageIndex:0];
+    // [image writeBytes:imageBytes
+    //         dataLayout:MPSDataLayoutHeightxWidthxFeatureChannels
+    //         imageIndex:0];
+
+    NSArray<MPSImage *> *_trainImages = [self loadMNISTImagesFromFile:@"train_images.mnist"];
+    NSArray<NSNumber *> *_trainLabels = [self loadMNISTLabelsFrom:@"train_labels.mnist"];
 
     MTLTextureDescriptor* pTextureDesc = [[MTLTextureDescriptor alloc] init];
     [pTextureDesc setWidth:IMAGE_WIDTH];
@@ -165,8 +237,8 @@
     [pTextureDesc setUsage:MTLResourceUsageSample|MTLResourceUsageRead];
 
     _pTexture = [_pDevice newTextureWithDescriptor:pTextureDesc];
-    _pTexture = image.texture;
-
+    _pTexture = _trainImages[100].texture;
+    NSLog(@"%d", [_trainLabels[100] intValue]);
     [pTextureDesc release];
 }
 

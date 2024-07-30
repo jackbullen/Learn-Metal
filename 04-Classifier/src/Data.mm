@@ -42,6 +42,7 @@
   _beta2 = 0.999f;
   _epsilon = 1e-08f;
   _t = 0.f;
+  _seed = 0;
 
   MPSNNOptimizerDescriptor *desc = [MPSNNOptimizerDescriptor
       optimizerDescriptorWithLearningRate:_learning_rate

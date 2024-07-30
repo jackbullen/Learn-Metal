@@ -70,7 +70,8 @@ void evaluateTestSet() {
     // NSLog(@"testLabel = %@", testLabel);
 
     // Prepare inference
-    // [graph->inferenceGraph reloadFromDataSources];
+    [graph->inferenceGraph reloadFromDataSources];
+
     MPSCommandBuffer *commandBuffer =
         [MPSCommandBuffer commandBufferFromCommandQueue:gCommandQueue];
 
@@ -96,8 +97,6 @@ int main(int argc, const char *argv[]) {
     semaphore = dispatch_semaphore_create(2);
     dataset = [[Dataset alloc] initWithDevice:gDevice];
     graph = [[Graph alloc] initWithDevice:gDevice];
-    // Before training loop
-    NSLog(@"%f", ((float *)[graph->conv1Wts weights])[0]);
 
     // Training
     id<MTLCommandBuffer> pCmd = nil;
@@ -105,10 +104,9 @@ int main(int argc, const char *argv[]) {
       @autoreleasepool {
         pCmd = runTrainingIterationBatch();
       }
-    // NSLog(@"Initial model parameters: %@", [graph->conv1Wts weights]);
+
     // Evaluation
-    NSLog(@"%f", ((float *)[graph->conv1Wts weights])[0]);
-    // evaluateTestSet();
+    evaluateTestSet();
   }
 
   return 0;

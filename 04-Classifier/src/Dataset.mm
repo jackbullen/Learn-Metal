@@ -103,13 +103,15 @@
 
     trainBatch = [trainBatch arrayByAddingObject:image];
 
-    float labelFloat = [label floatValue];
+    float labelFloat[12] = {0.f};
+    labelFloat[[label intValue]] = 1.f;
     NSData *labelsData = [NSData dataWithBytes:&labelFloat
-                                        length:sizeof(float)];
+                                        length:12*sizeof(float)];
+
     MPSCNNLossDataDescriptor *labelsDesc = [MPSCNNLossDataDescriptor
         cnnLossDataDescriptorWithData:labelsData
                                layout:MPSDataLayoutHeightxWidthxFeatureChannels
-                                 size:{1, 1, 1}];
+                                 size:{1, 1, 12}];
 
     MPSCNNLossLabels *lossState =
         [[MPSCNNLossLabels alloc] initWithDevice:device
