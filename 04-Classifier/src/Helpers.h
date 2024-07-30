@@ -26,16 +26,16 @@ template <typename T> int checkDigitLabel(MPSImage *image, uint8_t label) {
         dataLayout:(MPSDataLayoutFeatureChannelsxHeightxWidth)imageIndex:0];
 
   // Print raw values to debug
-  for (NSUInteger i = 0; i < image.featureChannels; i++) {
-    NSLog(@"Feature Channel %lu:", (unsigned long)i);
-    for (NSUInteger j = 0; j < image.height; j++) {
-      for (NSUInteger k = 0; k < image.width; k++) {
-        T value = vals[(i * image.height + j) * image.width + k];
-        NSLog(@"Value at (%lu, %lu, %lu): %f", (unsigned long)i,
-              (unsigned long)j, (unsigned long)k, value);
-      }
-    }
-  }
+  // for (NSUInteger i = 0; i < image.featureChannels; i++) {
+  //   NSLog(@"Feature Channel %lu:", (unsigned long)i);
+  //   for (NSUInteger j = 0; j < image.height; j++) {
+  //     for (NSUInteger k = 0; k < image.width; k++) {
+  //       T value = vals[(i * image.height + j) * image.width + k];
+  //       NSLog(@"Value at (%lu, %lu, %lu): %f", (unsigned long)i,
+  //             (unsigned long)j, (unsigned long)k, value);
+  //     }
+  //   }
+  // }
 
   // NSLog(@"%@", [image debugDescription]);
 

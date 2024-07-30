@@ -62,12 +62,10 @@ id<MTLCommandBuffer> runTrainingIterationBatch() {
 
 void evaluateTestSet() {
   // Get the image and corresponding label
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < [dataset->_testImages count]; i++) {
 
-    MPSImage *testImg = dataset->_trainImages[i];
-    NSNumber *testLabel = dataset->_trainLabels[i];
-    // NSLog(@"testImg = %@", testImg);
-    // NSLog(@"testLabel = %@", testLabel);
+    MPSImage *testImg = dataset->_testImages[i];
+    NSNumber *testLabel = dataset->_testLabels[i];
 
     // Prepare inference
     [graph->inferenceGraph reloadFromDataSources];
@@ -82,12 +80,13 @@ void evaluateTestSet() {
     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull) {
       int pred =
           checkDigitLabel<IMAGE_T>(outputImage, [testLabel unsignedCharValue]);
-      printf("%d =? %d\n", [testLabel unsignedIntValue], pred);
+      // printf("%d =? %d\n", [testLabel unsignedIntValue], pred);
     }];
 
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
   }
+  NSLog(@"Accuracy = %f", (float)gCorrect / (float)[dataset->_testImages count]);
 }
 
 int main(int argc, const char *argv[]) {
