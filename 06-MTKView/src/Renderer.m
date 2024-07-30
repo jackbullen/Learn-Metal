@@ -13,7 +13,7 @@
   id<MTLTexture> _pTexture;
   float _angle;
   float _loc[3];
-  int _currKey;
+  NSMutableDictionary<NSNumber *, NSNumber *> *_pControls;
 }
 @end
 
@@ -28,7 +28,7 @@
     _loc[0] = 0.f;
     _loc[1] = 0.f;
     _loc[2] = -10.f;
-    _currKey = -1;
+    _pControls = [NSMutableDictionary dictionary];
     [self buildShaders];
     [self buildTextures];
     [self buildBuffers];
@@ -180,26 +180,30 @@
 
 - (void)keyDownEvent:(NSEvent *)event {
   NSLog(@"Renderer received key down event: %d", (int)event.keyCode);
-  _currKey = (int)event.keyCode;
+  _pControls[@(event.keyCode)] = @YES;
 }
 
 - (void)keyUpEvent:(NSEvent *)event {
   NSLog(@"Renderer received key up event: %d", (int)event.keyCode);
-  _currKey = -1; // assumes only one key is pressed at a time
+  [_pControls removeObjectForKey:@(event.keyCode)];
 }
 
 - (void)draw:(MTKView *)pView {
   @autoreleasepool {
 
-    if (_currKey == 2) {
+    if ([_pControls[@(2)] boolValue]) {
       _loc[0] += 0.1f;
-    } else if (_currKey == 0) {
+    } 
+    if ([_pControls[@(0)] boolValue]) {
       _loc[0] -= 0.1f;
-    } else if (_currKey == 13) {
+    } 
+    if ([_pControls[@(13)] boolValue]) {
       _loc[1] += 0.1f;
-    } else if (_currKey == 1) {
+    } 
+    if ([_pControls[@(1)] boolValue]) {
       _loc[1] -= 0.1f;
-    } else if (_currKey == 49) {
+    } 
+    if ([_pControls[@(49)] boolValue]) {
       _loc[2] += 0.5f; // lol
     }
 
