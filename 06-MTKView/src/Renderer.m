@@ -197,19 +197,19 @@
 - (void)draw:(MTKView *)pView {
   @autoreleasepool {
 
-    if (_pControls[2]) {
-      _loc[0] += 0.1f;
+    if (_pControls[D_KEY]) {
+      _loc[0] += 0.05f;
     }
-    if (_pControls[0]) {
-      _loc[0] -= 0.1f;
+    if (_pControls[A_KEY]) {
+      _loc[0] -= 0.05f;
     }
-    if (_pControls[13]) {
-      _loc[1] += 0.1f;
+    if (_pControls[W_KEY]) {
+      _loc[1] += 0.05f;
     }
-    if (_pControls[1]) {
-      _loc[1] -= 0.1f;
+    if (_pControls[S_KEY]) {
+      _loc[1] -= 0.05f;
     }
-    if (_pControls[49]) {
+    if (_pControls[SPACEBAR]) {
       _loc[2] += 0.5f;
     }
 
