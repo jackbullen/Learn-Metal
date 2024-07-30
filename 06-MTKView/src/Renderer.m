@@ -1,6 +1,12 @@
 #import "Renderer.h"
 #import <objc/runtime.h>
 
+#define W_KEY 13
+#define A_KEY 0
+#define S_KEY 1
+#define D_KEY 2
+#define SPACEBAR 49
+
 @interface Renderer () {
   id<MTLDevice> _pDevice;
   id<MTLCommandQueue> _pCommandQueue;
@@ -13,7 +19,7 @@
   id<MTLTexture> _pTexture;
   float _angle;
   float _loc[3];
-  NSMutableDictionary<NSNumber *, NSNumber *> *_pControls;
+  bool _pControls[50];
 }
 @end
 
@@ -28,7 +34,7 @@
     _loc[0] = 0.f;
     _loc[1] = 0.f;
     _loc[2] = -10.f;
-    _pControls = [NSMutableDictionary dictionary];
+    memset(_pControls, 0, sizeof(_pControls));
     [self buildShaders];
     [self buildTextures];
     [self buildBuffers];
@@ -180,31 +186,31 @@
 
 - (void)keyDownEvent:(NSEvent *)event {
   NSLog(@"Renderer received key down event: %d", (int)event.keyCode);
-  _pControls[@(event.keyCode)] = @YES;
+  _pControls[event.keyCode] = true;
 }
 
 - (void)keyUpEvent:(NSEvent *)event {
   NSLog(@"Renderer received key up event: %d", (int)event.keyCode);
-  [_pControls removeObjectForKey:@(event.keyCode)];
+  _pControls[event.keyCode] = false;
 }
 
 - (void)draw:(MTKView *)pView {
   @autoreleasepool {
 
-    if ([_pControls[@(2)] boolValue]) {
+    if (_pControls[2]) {
       _loc[0] += 0.1f;
-    } 
-    if ([_pControls[@(0)] boolValue]) {
+    }
+    if (_pControls[0]) {
       _loc[0] -= 0.1f;
-    } 
-    if ([_pControls[@(13)] boolValue]) {
+    }
+    if (_pControls[13]) {
       _loc[1] += 0.1f;
-    } 
-    if ([_pControls[@(1)] boolValue]) {
+    }
+    if (_pControls[1]) {
       _loc[1] -= 0.1f;
-    } 
-    if ([_pControls[@(49)] boolValue]) {
-      _loc[2] += 0.5f; // lol
+    }
+    if (_pControls[49]) {
+      _loc[2] += 0.5f;
     }
 
     simd_float3 pos = {_loc[0], _loc[1], _loc[2]};

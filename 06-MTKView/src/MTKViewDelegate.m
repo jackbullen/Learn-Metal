@@ -16,6 +16,7 @@
 }
 
 - (void)keyDownEvent:(NSEvent *)event {
+  NSLog(@"%d", event.keyCode);
   [_renderer keyDownEvent:event];
 }
 
