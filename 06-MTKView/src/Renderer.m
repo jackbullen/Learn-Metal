@@ -1,4 +1,5 @@
 #import "Renderer.h"
+#include "FlyCamera.h"
 #import <objc/runtime.h>
 
 #define W_KEY 13
@@ -20,6 +21,16 @@
   float _angle;
   float _loc[3];
   bool _pControls[50];
+  float eye[3];
+  float look[3];
+  float up[3];
+  float view[16];
+  float delta_time_seconds;
+  float eye_speed;
+  float degrees_per_cursor_move;
+  float max_pitch_rotation_degrees;
+  int delta_cursor_x; // float
+  int delta_cursor_y; // float?
 }
 @end
 
@@ -28,13 +39,28 @@
 - (instancetype)initWithDevice:(id<MTLDevice>)device {
   self = [super init];
   if (self) {
-    _pDevice = device;
-    _pCommandQueue = [_pDevice newCommandQueue];
+    // Scene
     _angle = 0;
     _loc[0] = 0.f;
     _loc[1] = 0.f;
     _loc[2] = -10.f;
     memset(_pControls, 0, sizeof(_pControls));
+
+    // Camera
+    eye[0] = 0, eye[1] = 10, eye[2] = 0;
+    look[0] = 0, look[1] = 0, look[2] = 1;
+    up[0] = 0, up[1] = 1, up[2] = 0;
+    memset(view, 0, sizeof(view));
+    delta_time_seconds = 1.0;
+    eye_speed = 0.2;
+    degrees_per_cursor_move = 1.0;
+    max_pitch_rotation_degrees = 85;
+    delta_cursor_x = 0; // float?
+    delta_cursor_y = 0; // float?
+
+    // Metal
+    _pDevice = device;
+    _pCommandQueue = [_pDevice newCommandQueue];
     [self buildShaders];
     [self buildTextures];
     [self buildBuffers];
@@ -196,31 +222,49 @@
   @autoreleasepool {
 
     if (_pControls[D_KEY]) {
-      _loc[0] += 0.05f;
+      _loc[0] += 0.08f;
     }
     if (_pControls[A_KEY]) {
-      _loc[0] -= 0.05f;
+      _loc[0] -= 0.08f;
     }
     if (_pControls[W_KEY]) {
-      _loc[1] += 0.05f;
+      _loc[1] += 0.08f;
     }
     if (_pControls[S_KEY]) {
-      _loc[1] -= 0.05f;
+      _loc[1] -= 0.08f;
     }
     if (_pControls[SPACEBAR]) {
-      _loc[2] += 0.5f;
+      _loc[2] += 0.05f;
     }
 
-    simd_float3 pos = {_loc[0], _loc[1], _loc[2]};
+    simd_float3 pos = {0, 0, -10};
+    // simd_float3 pos = {_loc[0], _loc[1], _loc[2]};
 
     struct CameraData *pCameraData = [_pCameraDataBuffer contents];
 
     pCameraData->model =
         matrix_multiply(makeTranslate(pos), makeZRotate(_angle));
 
-    simd_float4x4 viewMatrix = makeXRotate(1.0);
-    viewMatrix = matrix_multiply(
-        viewMatrix, makeTranslate((simd_float3){-pos[0], -pos[1] + 10, 0.f}));
+    int forward_held = _pControls[W_KEY];
+    int left_held = _pControls[A_KEY];
+    int backward_held = _pControls[S_KEY];
+    int right_held = _pControls[D_KEY];
+    int jump_held = 0;
+    int crouch_held = 0;
+    unsigned int flags = 1;
+    flythrough_camera_update(
+        eye, look, up, view, delta_time_seconds, eye_speed,
+        degrees_per_cursor_move, max_pitch_rotation_degrees, delta_cursor_x,
+        delta_cursor_y, forward_held, left_held, backward_held, right_held,
+        jump_held, crouch_held, flags);
+    simd_float4x4 viewMatrix = {
+        (simd_float4){view[0], view[1], view[2], view[3]},
+        (simd_float4){view[4], view[5], view[6], view[7]},
+        (simd_float4){view[8], view[9], view[10], view[11]},
+        (simd_float4){view[12], view[13], view[14], view[15]}};
+    // simd_float4x4 viewMatrix = makeXRotate(1.0);
+    viewMatrix = matrix_multiply(viewMatrix,
+                                 makeTranslate((simd_float3){0, 0 + 10, 0.f}));
     pCameraData->view = viewMatrix;
 
     pCameraData->perspective =
