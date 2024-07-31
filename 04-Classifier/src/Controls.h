@@ -9,7 +9,7 @@
 #define TEST_SET_EVAL_INTERVAL 100
 #define BATCH_SIZE 40
 #define IMAGE_T __fp16
-static MPSImageFeatureChannelFormat fcFormat =
-    MPSImageFeatureChannelFormatFloat16;
+// static MPSImageFeatureChannelFormat fcFormat =
+    // MPSImageFeatureChannelFormatFloat16;
 
 #endif
