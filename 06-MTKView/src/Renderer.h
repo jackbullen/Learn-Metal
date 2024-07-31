@@ -22,9 +22,9 @@ struct VertexData {
 };
 
 struct CameraData {
-  simd_float4x4 transform;
-  simd_float3x3 normalTransform;
+  simd_float4x4 model;
+  simd_float4x4 view;
   simd_float4x4 perspective;
-  simd_float4x4 world;
-  simd_float3x3 worldNormal;
+  simd_float3x3 normalModel;
+  simd_float3x3 normalView;
 };

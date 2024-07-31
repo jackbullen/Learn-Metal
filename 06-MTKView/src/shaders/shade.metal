@@ -18,11 +18,11 @@ struct VertexData
 
 struct CameraData
 {
-    float4x4 transform;
-    float3x3 normalTransform;
+    float4x4 model;
+    float4x4 view;
     float4x4 perspective;
-    float4x4 world;
-    float3x3 worldNormal;
+    float3x3 normalTransform;
+    float3x3 normalView;
 };
 
 v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]],
@@ -31,18 +31,29 @@ v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]],
 {
     v2f o;
 
+    // Get the current vertex
     const device VertexData& vd = vertexData[vid];
+
+    // Apply transformations to position
     float4 pos = float4(vd.position, 1.0);
-    pos = cameraData.transform * pos;
-    pos = cameraData.perspective * cameraData.world * pos;
+
+    // 1. Model Transformation
+    pos = cameraData.model * pos;
+
+    // 2. View Transformation
+    pos = cameraData.view * pos;
+    
+    // 3. Perspective Transformation
+    pos = cameraData.perspective * pos;
+
+    // Apply transformations to normal
+    float3 normal = vd.normal;
+    normal = cameraData.normalTransform * normal;
+    normal = cameraData.normalView * normal;
+
     o.position = pos;
-
-    float3 normal = cameraData.normalTransform * vd.normal;
-    normal = cameraData.worldNormal * normal;
     o.normal = normal;
-
     o.texcoord = vd.texcoord;
-
     o.color = half4(1.0, 1.0, 1.0, 1.0);
     return o;
 }

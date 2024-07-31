@@ -185,12 +185,10 @@
 }
 
 - (void)keyDownEvent:(NSEvent *)event {
-  NSLog(@"Renderer received key down event: %d", (int)event.keyCode);
   _pControls[event.keyCode] = true;
 }
 
 - (void)keyUpEvent:(NSEvent *)event {
-  NSLog(@"Renderer received key up event: %d", (int)event.keyCode);
   _pControls[event.keyCode] = false;
 }
 
@@ -216,13 +214,22 @@
     simd_float3 pos = {_loc[0], _loc[1], _loc[2]};
 
     struct CameraData *pCameraData = [_pCameraDataBuffer contents];
-    pCameraData->transform =
+
+    pCameraData->model =
         matrix_multiply(makeTranslate(pos), makeZRotate(_angle));
-    pCameraData->normalTransform = chopMat(pCameraData->transform);
+
+    simd_float4x4 viewMatrix = makeXRotate(1.0);
+    viewMatrix = matrix_multiply(
+        viewMatrix, makeTranslate((simd_float3){-pos[0], -pos[1] + 10, 0.f}));
+    pCameraData->view = viewMatrix;
+
     pCameraData->perspective =
         makePerspective(45.f * M_PI / 180.f, 1.f, 0.03f, 500.0f);
-    pCameraData->world = makeIdentity();
-    pCameraData->worldNormal = chopMat(makeIdentity());
+
+    pCameraData->normalModel = chopMat(pCameraData->model);
+    pCameraData->normalView = chopMat(pCameraData->view);
+
+    // Encode render commands into CommandBuffer then commit
 
     id<MTLCommandBuffer> pCmd = [_pCommandQueue commandBuffer];
 
