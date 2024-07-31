@@ -10,8 +10,13 @@
 - (void)buildDepthStencilState;
 - (void)buildTextures;
 - (void)buildBuffers;
+
 - (void)keyUpEvent:(NSEvent *)event;
 - (void)keyDownEvent:(NSEvent *)event;
+- (void)mouseDownEvent:(NSPoint *)event;
+- (void)mouseUpEvent:(NSPoint *)event;
+- (void)mouseDraggedEvent:(NSPoint *)event;
+
 - (void)draw:(MTKView *)view;
 @end
 

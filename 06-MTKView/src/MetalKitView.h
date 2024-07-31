@@ -3,6 +3,9 @@
 @protocol KeyEventsDelegate <NSObject>
 - (void)keyDownEvent:(NSEvent *)event;
 - (void)keyUpEvent:(NSEvent *)event;
+- (void)mouseDownEvent:(NSPoint *)event;
+- (void)mouseUpEvent:(NSPoint *)event;
+- (void)mouseDraggedEvent:(NSPoint *)event;
 @end
 
 @interface MetalKitView : MTKView

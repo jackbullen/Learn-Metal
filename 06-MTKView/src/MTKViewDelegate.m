@@ -23,6 +23,18 @@
   [_renderer keyUpEvent:event];
 }
 
+- (void)mouseDownEvent:(NSPoint *)loc {
+  [_renderer mouseDownEvent:loc];
+}
+
+- (void)mouseUpEvent:(NSPoint *)loc {
+  [_renderer mouseUpEvent:loc];
+}
+
+- (void)mouseDraggedEvent:(NSPoint *)loc {
+  [_renderer mouseDraggedEvent:loc];
+}
+
 - (void)drawInMTKView:(MTKView *)view {
   [self.renderer draw:view];
 }

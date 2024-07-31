@@ -18,7 +18,7 @@ void flythrough_camera_update(
     float eye_speed,
     float degrees_per_cursor_move,
     float max_pitch_rotation_degrees,
-    int delta_cursor_x, int delta_cursor_y,
+    float delta_cursor_x, float delta_cursor_y,
     int forward_held, int left_held, int backward_held, int right_held,
     int jump_held, int crouch_held,
     unsigned int flags)
@@ -32,7 +32,7 @@ void flythrough_camera_update(
     assert(fabsf(up_len - 1.0f) < 0.000001f);
 
     // account for Y going down in cursor apis
-    delta_cursor_y = -delta_cursor_y;
+    // delta_cursor_y = -delta_cursor_y;
 
     // across = normalize(cross(normalize(look), normalize(up)))
     float across[3] = {

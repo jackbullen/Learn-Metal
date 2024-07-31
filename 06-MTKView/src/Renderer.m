@@ -21,6 +21,8 @@
   float _angle;
   float _loc[3];
   bool _pControls[50];
+  NSPoint previousMouse;
+  NSPoint currentMouse;
   float eye[3];
   float look[3];
   float up[3];
@@ -29,8 +31,6 @@
   float eye_speed;
   float degrees_per_cursor_move;
   float max_pitch_rotation_degrees;
-  int delta_cursor_x; // float
-  int delta_cursor_y; // float?
 }
 @end
 
@@ -45,18 +45,18 @@
     _loc[1] = 0.f;
     _loc[2] = -10.f;
     memset(_pControls, 0, sizeof(_pControls));
+    previousMouse = NSMakePoint(0.0, 0.0);
+    currentMouse = NSMakePoint(0.0, 0.0);
 
     // Camera
     eye[0] = 0, eye[1] = 0, eye[2] = 10;
-    look[0] = 0, look[1] = 0, look[2] = 1;
+    look[0] = 0, look[1] = 0, look[2] = -1;
     up[0] = 0, up[1] = 1, up[2] = 0;
     memset(view, 0, sizeof(view));
     delta_time_seconds = 1.0;
-    eye_speed = 0.2;
-    degrees_per_cursor_move = 1.0;
+    eye_speed = 0.05;
+    degrees_per_cursor_move = 0.5;
     max_pitch_rotation_degrees = 85;
-    delta_cursor_x = 0; // float?
-    delta_cursor_y = 0; // float?
 
     // Metal
     _pDevice = device;
@@ -218,6 +218,21 @@
   _pControls[event.keyCode] = false;
 }
 
+- (void)mouseDownEvent:(NSPoint *)loc {
+  currentMouse = *loc;
+  previousMouse = *loc;
+}
+
+- (void)mouseUpEvent:(NSPoint *)loc {
+  currentMouse = *loc;
+  previousMouse = *loc;
+}
+
+- (void)mouseDraggedEvent:(NSPoint *)loc {
+  previousMouse = currentMouse;
+  currentMouse = *loc;
+}
+
 - (void)draw:(MTKView *)pView {
   @autoreleasepool {
 
@@ -251,17 +266,20 @@
     int right_held = _pControls[D_KEY];
     int jump_held = 0;
     int crouch_held = 0;
+    float delta_cursor_x = (float)(currentMouse.x - previousMouse.x);
+    float delta_cursor_y = (float)(currentMouse.y - previousMouse.y);
     flythrough_camera_update(
         eye, look, up, view, delta_time_seconds, eye_speed,
         degrees_per_cursor_move, max_pitch_rotation_degrees, delta_cursor_x,
         delta_cursor_y, forward_held, left_held, backward_held, right_held,
-        jump_held, crouch_held, 1);
+        jump_held, crouch_held, 0);
     simd_float4x4 viewMatrix = {
         (simd_float4){view[0], view[1], view[2], view[3]},
         (simd_float4){view[4], view[5], view[6], view[7]},
         (simd_float4){view[8], view[9], view[10], view[11]},
         (simd_float4){view[12], view[13], view[14], view[15]}};
     pCameraData->view = viewMatrix;
+    previousMouse = currentMouse;
 
     pCameraData->perspective =
         makePerspective(45.f * M_PI / 180.f, 1.f, 0.03f, 500.0f);

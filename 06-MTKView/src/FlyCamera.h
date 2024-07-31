@@ -8,17 +8,17 @@
 #define FLYTHROUGH_CAMERA_LEFT_HANDED_BIT 1
 
 void flythrough_camera_update(
-    float eye[3],                             // eye position
-    float look[3],                            // look direction
-    const float up[3],                        // up direction
+    float eye[3],                               // eye position
+    float look[3],                              // look direction
+    const float up[3],                          // up direction
 
-    float view[16],                           // 4x4 view matrix to update
+    float view[16],                             // 4x4 view matrix to update
 
-    float delta_time_seconds,                 // time since last camera update
-    float eye_speed,                          // eye speed in world units / second
-    float degrees_per_cursor_move,            // degrees camera
-    float max_pitch_rotation_degrees,         // prevent vertical pitch issues
-    int delta_cursor_x, int delta_cursor_y,   // cursor dxdy between frames
+    float delta_time_seconds,                   // time since last camera update
+    float eye_speed,                            // eye speed in world units / second
+    float degrees_per_cursor_move,              // degrees camera
+    float max_pitch_rotation_degrees,           // prevent vertical pitch issues
+    float delta_cursor_x, float delta_cursor_y, // cursor dxdy between frames
 
     // indicators for whether or not strafing 
     int forward_held, int left_held, int backward_held, int right_held,

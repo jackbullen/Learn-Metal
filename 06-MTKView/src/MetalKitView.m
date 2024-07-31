@@ -14,4 +14,19 @@
   [_keyEventsDelegate keyUpEvent:event];
 }
 
+- (void)mouseDown:(NSEvent *)event {
+  NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
+  [_keyEventsDelegate mouseDownEvent:&loc];
+}
+
+- (void)mouseUp:(NSEvent *)event {
+  NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
+  [_keyEventsDelegate mouseUpEvent:&loc];
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+  NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
+  [_keyEventsDelegate mouseDraggedEvent:&loc];
+}
+
 @end
