@@ -4,6 +4,8 @@
 #import "Data.h"
 #import "Dataset.h"
 
+#define BATCH_SIZE 40
+
 @interface Graph : NSObject {
 @public
   id<MTLDevice> device;

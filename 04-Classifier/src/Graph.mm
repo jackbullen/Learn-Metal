@@ -1,5 +1,7 @@
 #import "Graph.h"
 
+#define BATCH_SIZE 40
+
 @implementation Graph
 
 - (instancetype)initWithDevice:(id<MTLDevice>)inputDevice {
@@ -55,7 +57,7 @@
                                       resultImage:lossExitPoints[0].resultImage
                               resultImageIsNeeded:YES];
 
-  trainGraph.format = fcFormat;
+  trainGraph.format = MPSImageFeatureChannelFormatFloat32;
 
   [self initInferenceGraph];
 
@@ -70,7 +72,7 @@
                                           resultImage:finalNode.resultImage
                                   resultImageIsNeeded:YES];
 
-  inferenceGraph.format = fcFormat;
+  inferenceGraph.format = MPSImageFeatureChannelFormatFloat32;
 }
 
 - (MPSNNFilterNode *)createNodesWithTraining:(BOOL)isTraining {

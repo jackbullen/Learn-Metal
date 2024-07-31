@@ -1,5 +1,6 @@
 #import "ImageUtils.h"
 
+// Save a binary image stored as unsigned char* to PNG
 void createAndSaveImage(NSString *name, const unsigned char *pixels, int width,
                         int height) {
   NSBitmapImageRep *bitmapRep = [[NSBitmapImageRep alloc]
@@ -29,6 +30,7 @@ void createAndSaveImage(NSString *name, const unsigned char *pixels, int width,
   } 
 }
 
+// Save all of the images contained in a file
 void saveImages(NSString *filepath, int imageBytes) {
   unsigned char pixels[imageBytes];
 

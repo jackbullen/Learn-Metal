@@ -1,12 +1,9 @@
 #ifndef DATASOURCES_H
 #define DATASOURCES_H
 
-#import "Controls.h"
-
-#ifndef ADVANCE_PTR
-#define ADVANCE_PTR(_a, _size)                                                 \
-  (__typeof__(_a))((uintptr_t)(_a) + (size_t)(_size))
-#endif
+#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
+#import <MetalPerformanceShaders/MetalPerformanceShaders.h>
 
 extern float gLearningRate;
 
