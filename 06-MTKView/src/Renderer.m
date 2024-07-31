@@ -47,7 +47,7 @@
     memset(_pControls, 0, sizeof(_pControls));
 
     // Camera
-    eye[0] = 0, eye[1] = 10, eye[2] = 0;
+    eye[0] = 0, eye[1] = 0, eye[2] = 10;
     look[0] = 0, look[1] = 0, look[2] = 1;
     up[0] = 0, up[1] = 1, up[2] = 0;
     memset(view, 0, sizeof(view));
@@ -237,7 +237,7 @@
       _loc[2] += 0.05f;
     }
 
-    simd_float3 pos = {0, 0, -10};
+    simd_float3 pos = {0, 0, 0};
     // simd_float3 pos = {_loc[0], _loc[1], _loc[2]};
 
     struct CameraData *pCameraData = [_pCameraDataBuffer contents];
@@ -251,20 +251,16 @@
     int right_held = _pControls[D_KEY];
     int jump_held = 0;
     int crouch_held = 0;
-    unsigned int flags = 1;
     flythrough_camera_update(
         eye, look, up, view, delta_time_seconds, eye_speed,
         degrees_per_cursor_move, max_pitch_rotation_degrees, delta_cursor_x,
         delta_cursor_y, forward_held, left_held, backward_held, right_held,
-        jump_held, crouch_held, flags);
+        jump_held, crouch_held, 1);
     simd_float4x4 viewMatrix = {
         (simd_float4){view[0], view[1], view[2], view[3]},
         (simd_float4){view[4], view[5], view[6], view[7]},
         (simd_float4){view[8], view[9], view[10], view[11]},
         (simd_float4){view[12], view[13], view[14], view[15]}};
-    // simd_float4x4 viewMatrix = makeXRotate(1.0);
-    viewMatrix = matrix_multiply(viewMatrix,
-                                 makeTranslate((simd_float3){0, 0 + 10, 0.f}));
     pCameraData->view = viewMatrix;
 
     pCameraData->perspective =

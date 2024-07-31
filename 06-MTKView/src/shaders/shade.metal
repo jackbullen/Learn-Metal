@@ -60,7 +60,7 @@ v2f vertex vertexMain(device const VertexData* vertexData [[buffer(0)]],
 
 half4 fragment fragmentMain(v2f in [[stage_in]])
 {
-    float3 lightD = normalize(float3(0.0, 0.0, 1.0));
+    float3 lightD = normalize(float3(0.0, 0.0, -1.0));
     float3 normal = normalize(in.normal);
 
     half3 illumin = in.color.rgb * saturate(dot(lightD, normal));
